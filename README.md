@@ -6,3 +6,6 @@ data  from [Aatish Bhatia](https://aatishb.com/covidtrends/)
 I run this script every hour, which updates data from the [New York
 Times Dataset](https://github.com/nytimes/covid-19-data.git)
 
+![COVID-19 By County](covid_plot.jpg)
+
+
