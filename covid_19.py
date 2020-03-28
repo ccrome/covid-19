@@ -59,7 +59,9 @@ fig, ax0 = plt.subplots(nrows=1, ncols=1,figsize=[8, 8])
 counties = counties_by_num_cases(df)
 for county in counties[:num_counties_to_plot]:
   plot_county(county, min_cases=300, axis=ax0)
-plot_county("Santa Clara", axis=ax0, lineweight=4)
+my_counties = ["Santa Clara", "Marin", "San Francisco"]
+for county in my_counties:
+    plot_county(county, axis=ax0, lineweight=4)
 ax0.set_xlabel("Total Cases")
 ax0.set_ylabel("New Cases")
 ax0.set_title(f"Top {num_counties_to_plot} counties in the USA, by number of cases, as of {latest_date(df)}\nScript last run {get_time()}")
