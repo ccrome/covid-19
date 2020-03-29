@@ -1,0 +1,7 @@
+#!/bin/bash
+echo "Running" >> /home/caleb/covid-19/covid_19.log 2>&1
+cd /home/caleb/covid-19  >> /home/caleb/covid-19/covid_19.log  2>&1
+/home/caleb/anaconda3/bin/python covid_19.py  >> /home/caleb/covid-19/covid_19.log  2>&1
+git add covid_plot.jpg  >> /home/caleb/covid-19/covid_19.log  2>&1
+git commit -m "`date`"  >> /home/caleb/covid-19/covid_19.log  2>&1
+git push  >> /home/caleb/covid-19/covid_19.log  2>&1
