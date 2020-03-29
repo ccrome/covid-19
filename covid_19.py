@@ -13,12 +13,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import subprocess
 from datetime import datetime
-
+bypass=True
 if not os.path.exists("covid-19-data"):
     subprocess.run(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
 else:
     out = subprocess.run(["git", "pull"], cwd="covid-19-data", capture_output=True)
-    if out.stdout.startswith(b'Already up to date.'):
+    if out.stdout.startswith(b'Already up to date.') and bypass:
         print("No Changes")
         exit(0)
 
