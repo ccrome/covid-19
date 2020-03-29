@@ -17,11 +17,29 @@ from datetime import datetime
 if not os.path.exists("covid-19-data"):
     subprocess.run(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
 else:
-    subprocess.run(["git", "pull"], cwd="covid-19-data")
+    out = subprocess.run(["git", "pull"], cwd="covid-19-data", capture_output=True)
+    if out.stdout.startswith(b'Already up to date.'):
+        print("No Changes")
+        exit(0)
 
-df = pd.read_csv("covid-19-data/us-counties.csv")
+df_county = pd.read_csv("covid-19-data/us-counties.csv")
+df_state = pd.read_csv("covid-19-data/us-states.csv")
 
-def plot_county(county, axis, min_cases=10, lineweight=1):
+def plot_state(df, state, axis, min_cases=10, lineweight=1):
+    state_data = df.loc[df.state==state]
+    dates = state_data.date.to_numpy()
+    cases = state_data.cases.to_numpy()
+    new_cases = cases[1:] - cases[:-1]
+    new_cases = np.insert(new_cases, 0, 0)
+    mask = new_cases > 0
+    new_cases = new_cases[mask]
+    cases = cases[mask]
+    dates = dates[mask]
+    if len(cases) > 0 and cases[-1] > min_cases:
+        axis.loglog(cases, new_cases, "-*", label=state, linewidth=lineweight)
+
+
+def plot_county(df, county, axis, min_cases=10, lineweight=1):
     county_data = df.loc[df.county==county]
     dates = county_data.date.to_numpy()
     cases = county_data.cases.to_numpy()
@@ -32,7 +50,7 @@ def plot_county(county, axis, min_cases=10, lineweight=1):
     cases = cases[mask]
     dates = dates[mask]
     if len(cases) > 0 and cases[-1] > min_cases:
-      axis.loglog(cases, new_cases, label=county, linewidth=lineweight)
+      axis.loglog(cases, new_cases, "-*", label=county, linewidth=lineweight)
 
 def counties_by_num_cases(df):
   counties = df.county.unique()
@@ -43,6 +61,16 @@ def counties_by_num_cases(df):
   county_cases = sorted(county_cases, key=lambda x: x[1])[::-1]
   counties = [x[0] for x in county_cases]
   return counties
+
+def states_by_num_cases(df):
+  states = df.state.unique()
+  cases = []
+  for state in states:
+    cases.append(df.loc[df.state==state].cases.to_numpy()[-1])
+  state_cases = list(zip(states, cases))
+  state_cases = sorted(state_cases, key=lambda x: x[1])[::-1]
+  states = [x[0] for x in state_cases]
+  return states
 
 def latest_date(df):
   return df.date.max()
@@ -55,18 +83,33 @@ def get_time():
   return local_time.strftime("%m/%d/%Y, %H:%M:%S %Z")
 
 num_counties_to_plot=10
-fig, ax0 = plt.subplots(nrows=1, ncols=1,figsize=[8, 8])
-counties = counties_by_num_cases(df)
+num_states_to_plot=10
+fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2,figsize=[16, 8])
+counties = counties_by_num_cases(df_county)
 for county in counties[:num_counties_to_plot]:
-  plot_county(county, min_cases=300, axis=ax0)
+  plot_county(df_county, county, min_cases=300, axis=ax0)
 my_counties = ["Santa Clara", "Marin", "San Francisco"]
 for county in my_counties:
-    plot_county(county, axis=ax0, lineweight=4)
+    plot_county(df_county, county, axis=ax0, lineweight=4)
+
 ax0.set_xlabel("Total Cases")
 ax0.set_ylabel("New Cases")
-ax0.set_title(f"Top {num_counties_to_plot} counties in the USA, by number of cases, as of {latest_date(df)}\nScript last run {get_time()}")
+ax0.set_title(f"Top {num_counties_to_plot} counties in the USA, by number of cases, as of {latest_date(df_county)}\nScript last run {get_time()}")
 ax0.grid()
-l=ax0.legend(loc="upper left")
+ax0.legend(loc="upper left")
+
+states = states_by_num_cases(df_state)
+my_states=["California", "Virginia", "Ohio"]
+for state in states[:num_states_to_plot]:
+    plot_state(df_state, state, ax1)
+for state in my_states:
+    plot_state(df_state, state, ax1, lineweight=4)
+ax1.set_xlabel("Total Cases")
+ax1.set_ylabel("New Cases")
+ax1.set_title(f"Top {num_states_to_plot} states, as of {latest_date(df_state)}\nScript last run {get_time()}")
+ax1.grid()
+ax1.legend(loc="upper left")
+
 fig.savefig("covid_plot.jpg")
-#plt.show()
+plt.show()
 
