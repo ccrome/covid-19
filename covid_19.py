@@ -11,9 +11,22 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import argparse
 import subprocess
 from datetime import datetime
-bypass=True
+
+
+def get_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("-f", "--force", action="store_true", help="Force update plot")
+    args = p.parse_args()
+    args.bypass = not args.force
+    return args
+
+
+args = get_args()
+bypass=args.bypass
+
 if not os.path.exists("covid-19-data"):
     subprocess.run(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
 else:
@@ -112,4 +125,3 @@ ax1.legend(loc="upper left")
 
 fig.savefig("covid_plot.jpg")
 plt.show()
-
