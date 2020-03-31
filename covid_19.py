@@ -26,7 +26,7 @@ def get_args():
                    )
     p.add_argument("--nc", "--n-counties", type=int, help="plot top 'n' states/counties", default=10)
     p.add_argument("--ns", "--n-states", type=int, help="plot top 'n' states/counties", default=10)
-    p.add_argument("-d", "--days", type=int, help="Number of days to average", default=7)
+    p.add_argument("-d", "--days", type=int, help="Number of days to average", default=5)
     args = p.parse_args()
     args.bypass = not args.force
     return args
@@ -40,12 +40,23 @@ def update_git(bypass):
             print("No Changes")
             exit(0)
 
+def moving_average(x_, w):
+    mavg= x_[:w].sum() / w + np.cumsum(x_[w:] - x_[:-w]) / w
+    y_ = np.insert(mavg, 0, np.zeros(w))
+    return y_
+
 def compute_new_cases(cases, dates, num_days):
     new_cases = cases[1:] - cases[:-1]
     new_cases = np.insert(new_cases, 0, 0)
     mask = new_cases > 0
     new_cases = new_cases[mask]
     cases = cases[mask]
+    dates = dates[mask]
+    new_cases = moving_average(new_cases, num_days)
+
+    mask = new_cases != 0
+    cases = cases[mask]
+    new_cases = new_cases[mask]
     dates = dates[mask]
     return cases, new_cases, dates
 
@@ -130,7 +141,7 @@ if __name__=='__main__':
         plot_county(df_county, county, state, num_days = args.days, axis=ax0, lineweight=4)
 
     ax0.set_xlabel("Total Cases")
-    ax0.set_ylabel("New Cases")
+    ax0.set_ylabel(f"New Cases per day, averaged over {args.days} days")
     ax0.set_title(f"Top {num_counties_to_plot} counties in the USA, by number of cases, as of {latest_date(df_county)}\nScript last run {get_time()}")
     ax0.grid()
     ax0.legend(loc="upper left")
@@ -142,7 +153,7 @@ if __name__=='__main__':
     for state in my_states:
         plot_state(df_state, state, ax1, lineweight=4, num_days=args.days)
     ax1.set_xlabel("Total Cases")
-    ax1.set_ylabel("New Cases")
+    ax1.set_ylabel(f"New Cases per day, averaged over {args.days} days")
     ax1.set_title(f"Top {num_states_to_plot} states, as of {latest_date(df_state)}\nScript last run {get_time()}")
     ax1.grid()
     ax1.legend(loc="upper left")
