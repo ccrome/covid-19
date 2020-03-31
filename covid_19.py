@@ -19,6 +19,7 @@ from datetime import datetime
 def get_args():
     p = argparse.ArgumentParser()
     p.add_argument("-f", "--force", action="store_true", help="Force update plot")
+    p.add_argument("-s", "--states", help="States to plot, inaddition to the top n", default=["California", "Virginia", "Ohio"], nargs='+')
     p.add_argument("-c", "--counties", nargs='+', help="Additional Counties to plot",
                    default=["Santa Clara,California",
                             "Marin,California",
@@ -60,13 +61,13 @@ def compute_new_cases(cases, dates, num_days):
     dates = dates[mask]
     return cases, new_cases, dates
 
-def plot_state(df, state, axis, num_days, min_cases=10, lineweight=1):
+def plot_state(df, state, axis, num_days, min_cases=10, lineweight=1, offset=1.0):
     state_data = df.loc[df.state==state]
     dates = state_data.date.to_numpy()
     cases = state_data.cases.to_numpy()
     cases, new_cases, dates = compute_new_cases(cases, dates, num_days)
     if len(cases) > 0 and cases[-1] > min_cases:
-        axis.loglog(cases, new_cases, "-*", label=state, linewidth=lineweight)
+        axis.loglog(cases, new_cases*offset, "-*", label=state, linewidth=lineweight)
 
 
 def plot_county(df, county, state, axis, num_days, min_cases=10, lineweight=1):
@@ -147,15 +148,25 @@ if __name__=='__main__':
     ax0.legend(loc="upper left")
 
     states = states_by_num_cases(df_state)
-    my_states=["California", "Virginia", "Ohio"]
+    my_states=args.states
+
+    base = 1
+    exponent = 10
     for state in states[:num_states_to_plot]:
-        plot_state(df_state, state, ax1, num_days=args.days)
+        plot_state(df_state, state, ax1, num_days=args.days, offset = base**exponent)
+        exponent += 1
     for state in my_states:
-        plot_state(df_state, state, ax1, lineweight=4, num_days=args.days)
+        plot_state(df_state, state, ax1, lineweight=4, num_days=args.days, offset=base**exponent)
+        exponent += 1
     ax1.set_xlabel("Total Cases")
     ax1.set_ylabel(f"New Cases per day, averaged over {args.days} days")
     ax1.set_title(f"Top {num_states_to_plot} states, as of {latest_date(df_state)}\nScript last run {get_time()}")
     ax1.grid()
     ax1.legend(loc="upper left")
     fig.savefig("covid_plot.jpg")
+
+    ax0.set_xlim(10**1, 10**5)
+    ax1.set_xlim(10**1, 10**5)
+    ax0.set_ylim(10**0, 10**4)
+    ax1.set_ylim(10**0, 10**4)
     plt.show()
