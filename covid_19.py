@@ -19,24 +19,21 @@ from datetime import datetime
 def get_args():
     p = argparse.ArgumentParser()
     p.add_argument("-f", "--force", action="store_true", help="Force update plot")
+    p.add_argument("-c", "--counties", nargs='+', help="Counties to plot", default=["Santa Clara", "Marin", "San Francisco"])
+    p.add_argument("-n", "--ntop", type=int, help="plot top 'n' states/counties", default=10)
     args = p.parse_args()
     args.bypass = not args.force
     return args
 
 
-args = get_args()
-bypass=args.bypass
-
-if not os.path.exists("covid-19-data"):
-    subprocess.run(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
-else:
-    out = subprocess.run(["git", "pull"], cwd="covid-19-data", capture_output=True)
-    if out.stdout.startswith(b'Already up to date.') and bypass:
-        print("No Changes")
-        exit(0)
-
-df_county = pd.read_csv("covid-19-data/us-counties.csv")
-df_state = pd.read_csv("covid-19-data/us-states.csv")
+def update_git(bypass):
+    if not os.path.exists("covid-19-data"):
+        subprocess.run(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
+    else:
+        out = subprocess.run(["git", "pull"], cwd="covid-19-data", capture_output=True)
+        if out.stdout.startswith(b'Already up to date.') and bypass:
+            print("No Changes")
+            exit(0)
 
 def plot_state(df, state, axis, min_cases=10, lineweight=1):
     state_data = df.loc[df.state==state]
@@ -87,6 +84,7 @@ def states_by_num_cases(df):
 
 def latest_date(df):
   return df.date.max()
+
 def get_time():
   import pytz
   utc = pytz.timezone('UTC')
@@ -95,33 +93,41 @@ def get_time():
   local_time = now.astimezone(la)
   return local_time.strftime("%m/%d/%Y, %H:%M:%S %Z")
 
-num_counties_to_plot=10
-num_states_to_plot=10
-fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2,figsize=[16, 8])
-counties = counties_by_num_cases(df_county)
-for county in counties[:num_counties_to_plot]:
-  plot_county(df_county, county, min_cases=300, axis=ax0)
-my_counties = ["Santa Clara", "Marin", "San Francisco"]
-for county in my_counties:
-    plot_county(df_county, county, axis=ax0, lineweight=4)
 
-ax0.set_xlabel("Total Cases")
-ax0.set_ylabel("New Cases")
-ax0.set_title(f"Top {num_counties_to_plot} counties in the USA, by number of cases, as of {latest_date(df_county)}\nScript last run {get_time()}")
-ax0.grid()
-ax0.legend(loc="upper left")
+if __name__=='__main__':
+    args = get_args()
+    bypass=args.bypass
+    update_git(bypass)
 
-states = states_by_num_cases(df_state)
-my_states=["California", "Virginia", "Ohio"]
-for state in states[:num_states_to_plot]:
-    plot_state(df_state, state, ax1)
-for state in my_states:
-    plot_state(df_state, state, ax1, lineweight=4)
-ax1.set_xlabel("Total Cases")
-ax1.set_ylabel("New Cases")
-ax1.set_title(f"Top {num_states_to_plot} states, as of {latest_date(df_state)}\nScript last run {get_time()}")
-ax1.grid()
-ax1.legend(loc="upper left")
+    num_counties_to_plot=args.ntop
+    num_states_to_plot=args.ntop
+    fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2,figsize=[16, 8])
 
-fig.savefig("covid_plot.jpg")
-plt.show()
+    df_county = pd.read_csv("covid-19-data/us-counties.csv")
+    df_state = pd.read_csv("covid-19-data/us-states.csv")
+
+    counties = counties_by_num_cases(df_county)
+    for county in counties[:num_counties_to_plot]:
+        plot_county(df_county, county, min_cases=300, axis=ax0)
+    for county in args.counties:
+        plot_county(df_county, county, axis=ax0, lineweight=4)
+
+    ax0.set_xlabel("Total Cases")
+    ax0.set_ylabel("New Cases")
+    ax0.set_title(f"Top {num_counties_to_plot} counties in the USA, by number of cases, as of {latest_date(df_county)}\nScript last run {get_time()}")
+    ax0.grid()
+    ax0.legend(loc="upper left")
+
+    states = states_by_num_cases(df_state)
+    my_states=["California", "Virginia", "Ohio"]
+    for state in states[:num_states_to_plot]:
+        plot_state(df_state, state, ax1)
+    for state in my_states:
+        plot_state(df_state, state, ax1, lineweight=4)
+    ax1.set_xlabel("Total Cases")
+    ax1.set_ylabel("New Cases")
+    ax1.set_title(f"Top {num_states_to_plot} states, as of {latest_date(df_state)}\nScript last run {get_time()}")
+    ax1.grid()
+    ax1.legend(loc="upper left")
+    fig.savefig("covid_plot.jpg")
+    plt.show()
