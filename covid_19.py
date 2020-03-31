@@ -19,9 +19,14 @@ from datetime import datetime
 def get_args():
     p = argparse.ArgumentParser()
     p.add_argument("-f", "--force", action="store_true", help="Force update plot")
-    p.add_argument("-c", "--counties", nargs='+', help="Counties to plot",
-                   default=["Santa Clara", "Marin", "San Francisco"])
-    p.add_argument("-n", "--ntop", type=int, help="plot top 'n' states/counties", default=10)
+    p.add_argument("-c", "--counties", nargs='+', help="Additional Counties to plot",
+                   default=["Santa Clara,California",
+                            "Marin,California",
+                            "Marion,Indiana"]
+                   )
+    p.add_argument("--nc", "--n-counties", type=int, help="plot top 'n' states/counties", default=10)
+    p.add_argument("--ns", "--n-states", type=int, help="plot top 'n' states/counties", default=10)
+    p.add_argument("-d", "--days", type=int, help="Number of days to average", default=7)
     args = p.parse_args()
     args.bypass = not args.force
     return args
@@ -35,30 +40,29 @@ def update_git(bypass):
             print("No Changes")
             exit(0)
 
-def plot_state(df, state, axis, min_cases=10, lineweight=1):
-    state_data = df.loc[df.state==state]
-    dates = state_data.date.to_numpy()
-    cases = state_data.cases.to_numpy()
+def compute_new_cases(cases, dates, num_days):
     new_cases = cases[1:] - cases[:-1]
     new_cases = np.insert(new_cases, 0, 0)
     mask = new_cases > 0
     new_cases = new_cases[mask]
     cases = cases[mask]
     dates = dates[mask]
+    return cases, new_cases, dates
+
+def plot_state(df, state, axis, num_days, min_cases=10, lineweight=1):
+    state_data = df.loc[df.state==state]
+    dates = state_data.date.to_numpy()
+    cases = state_data.cases.to_numpy()
+    cases, new_cases, dates = compute_new_cases(cases, dates, num_days)
     if len(cases) > 0 and cases[-1] > min_cases:
         axis.loglog(cases, new_cases, "-*", label=state, linewidth=lineweight)
 
 
-def plot_county(df, county, state, axis, min_cases=10, lineweight=1):
+def plot_county(df, county, state, axis, num_days, min_cases=10, lineweight=1):
     county_data = df.loc[(df.county==county) & (df.state==state)]
     dates = county_data.date.to_numpy()
     cases = county_data.cases.to_numpy()
-    new_cases = cases[1:] - cases[:-1]
-    new_cases = np.insert(new_cases, 0, 0)
-    mask = new_cases > 0
-    new_cases = new_cases[mask]
-    cases = cases[mask]
-    dates = dates[mask]
+    cases, new_cases, dates = compute_new_cases(cases, dates, num_days)
     axis.loglog(cases, new_cases, "-*", label=f"{county}, {state}", linewidth=lineweight)
 
 def counties_by_num_cases(df):
@@ -112,8 +116,8 @@ if __name__=='__main__':
     bypass=args.bypass
     update_git(bypass)
 
-    num_counties_to_plot=args.ntop
-    num_states_to_plot=args.ntop
+    num_counties_to_plot=args.nc
+    num_states_to_plot=args.ns
     fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2,figsize=[16, 8])
 
     df_county = pd.read_csv("covid-19-data/us-counties.csv")
@@ -121,9 +125,9 @@ if __name__=='__main__':
 
     counties = counties_by_num_cases(df_county)
     for county,state in counties[:num_counties_to_plot]:
-        plot_county(df_county, county, state, min_cases=300, axis=ax0)
+        plot_county(df_county, county, state, num_days = args.days, min_cases=300, axis=ax0)
     for county, state in parse_counties(args.counties):
-        plot_county(df_county, county, state, axis=ax0, lineweight=4)
+        plot_county(df_county, county, state, num_days = args.days, axis=ax0, lineweight=4)
 
     ax0.set_xlabel("Total Cases")
     ax0.set_ylabel("New Cases")
@@ -134,9 +138,9 @@ if __name__=='__main__':
     states = states_by_num_cases(df_state)
     my_states=["California", "Virginia", "Ohio"]
     for state in states[:num_states_to_plot]:
-        plot_state(df_state, state, ax1)
+        plot_state(df_state, state, ax1, num_days=args.days)
     for state in my_states:
-        plot_state(df_state, state, ax1, lineweight=4)
+        plot_state(df_state, state, ax1, lineweight=4, num_days=args.days)
     ax1.set_xlabel("Total Cases")
     ax1.set_ylabel("New Cases")
     ax1.set_title(f"Top {num_states_to_plot} states, as of {latest_date(df_state)}\nScript last run {get_time()}")
