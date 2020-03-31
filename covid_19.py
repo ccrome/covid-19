@@ -19,12 +19,12 @@ from datetime import datetime
 def get_args():
     p = argparse.ArgumentParser()
     p.add_argument("-f", "--force", action="store_true", help="Force update plot")
-    p.add_argument("-c", "--counties", nargs='+', help="Counties to plot", default=["Santa Clara", "Marin", "San Francisco"])
+    p.add_argument("-c", "--counties", nargs='+', help="Counties to plot",
+                   default=["Santa Clara", "Marin", "San Francisco"])
     p.add_argument("-n", "--ntop", type=int, help="plot top 'n' states/counties", default=10)
     args = p.parse_args()
     args.bypass = not args.force
     return args
-
 
 def update_git(bypass):
     if not os.path.exists("covid-19-data"):
@@ -49,8 +49,8 @@ def plot_state(df, state, axis, min_cases=10, lineweight=1):
         axis.loglog(cases, new_cases, "-*", label=state, linewidth=lineweight)
 
 
-def plot_county(df, county, axis, min_cases=10, lineweight=1):
-    county_data = df.loc[df.county==county]
+def plot_county(df, county, state, axis, min_cases=10, lineweight=1):
+    county_data = df.loc[(df.county==county) & (df.state==state)]
     dates = county_data.date.to_numpy()
     cases = county_data.cases.to_numpy()
     new_cases = cases[1:] - cases[:-1]
@@ -59,40 +59,53 @@ def plot_county(df, county, axis, min_cases=10, lineweight=1):
     new_cases = new_cases[mask]
     cases = cases[mask]
     dates = dates[mask]
-    if len(cases) > 0 and cases[-1] > min_cases:
-      axis.loglog(cases, new_cases, "-*", label=county, linewidth=lineweight)
+    axis.loglog(cases, new_cases, "-*", label=f"{county}, {state}", linewidth=lineweight)
 
 def counties_by_num_cases(df):
-  counties = df.county.unique()
-  cases = []
-  for county in counties:
-    cases.append(df.loc[df.county==county].cases.to_numpy()[-1])
-  county_cases = list(zip(counties, cases))
-  county_cases = sorted(county_cases, key=lambda x: x[1])[::-1]
-  counties = [x[0] for x in county_cases]
-  return counties
+    counties = np.array(df[["county", "state"]].values, dtype=str)
+    counties = np.unique(counties, axis=0)
+    cases = []
+    for county, state in counties:
+        c = df.loc[(df.county==county) &  (df.state==state)].cases.to_numpy()[-1]
+        cases.append(c)
+    county_cases = list(zip(counties, cases))
+    county_cases = sorted(county_cases, key=lambda x: x[1])[::-1]
+    counties = [x[0] for x in county_cases]
+    return counties
 
 def states_by_num_cases(df):
-  states = df.state.unique()
-  cases = []
-  for state in states:
-    cases.append(df.loc[df.state==state].cases.to_numpy()[-1])
-  state_cases = list(zip(states, cases))
-  state_cases = sorted(state_cases, key=lambda x: x[1])[::-1]
-  states = [x[0] for x in state_cases]
-  return states
+    states = df.state.unique()
+    cases = []
+    for state in states:
+        cases.append(df.loc[df.state==state].cases.to_numpy()[-1])
+    state_cases = list(zip(states, cases))
+    state_cases = sorted(state_cases, key=lambda x: x[1])[::-1]
+    states = [x[0] for x in state_cases]
+    return states
 
 def latest_date(df):
-  return df.date.max()
+    return df.date.max()
 
 def get_time():
-  import pytz
-  utc = pytz.timezone('UTC')
-  now = utc.localize(datetime.utcnow())
-  la = pytz.timezone('America/Los_Angeles')
-  local_time = now.astimezone(la)
-  return local_time.strftime("%m/%d/%Y, %H:%M:%S %Z")
+    import pytz
+    utc = pytz.timezone('UTC')
+    now = utc.localize(datetime.utcnow())
+    la = pytz.timezone('America/Los_Angeles')
+    local_time = now.astimezone(la)
+    return local_time.strftime("%m/%d/%Y, %H:%M:%S %Z")
 
+def parse_counties(county_args):
+    """county_args is a list of county,state arguments.  
+    Parse them into a list of lists of [[county, state], ...]"""
+    c = []
+    for county_state in county_args:
+        try:
+            county, state = county_state.split(",")
+            c.append([county, state])
+        except ValueError:
+            print(f"Couldn't parse {county_state} as a City,State pair.  Please specify counties as a county,state pair.")
+            exit(1)
+    return c
 
 if __name__=='__main__':
     args = get_args()
@@ -107,10 +120,10 @@ if __name__=='__main__':
     df_state = pd.read_csv("covid-19-data/us-states.csv")
 
     counties = counties_by_num_cases(df_county)
-    for county in counties[:num_counties_to_plot]:
-        plot_county(df_county, county, min_cases=300, axis=ax0)
-    for county in args.counties:
-        plot_county(df_county, county, axis=ax0, lineweight=4)
+    for county,state in counties[:num_counties_to_plot]:
+        plot_county(df_county, county, state, min_cases=300, axis=ax0)
+    for county, state in parse_counties(args.counties):
+        plot_county(df_county, county, state, axis=ax0, lineweight=4)
 
     ax0.set_xlabel("Total Cases")
     ax0.set_ylabel("New Cases")
