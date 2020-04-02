@@ -19,7 +19,6 @@ def get_args():
     p = argparse.ArgumentParser()
     p.add_argument("-f", "--force", action="store_true", help="Force update plot")
     p.add_argument("-s", "--states", help="States to plot, inaddition to the top n", default=["California", "Ohio", "Idaho"], nargs='+')
-    p.add_argument("-p", "--percent", help="plot by percent growth rate instead of total numbers", action="store_true")
     p.add_argument("-c", "--counties", nargs='+', help="Additional Counties to plot",
                    default=["Santa Clara,California",
                             "Marin,California",
@@ -66,7 +65,7 @@ def plot_state(states, state, axis, num_days, min_cases=10, lineweight=1, offset
     cases = states[state]["cases"]
     cases, new_cases, dates = compute_new_cases(cases, dates, num_days)
     if percent:
-        axis.semilogx(cases, new_cases/cases*100, style, label=state, linewidth=lineweight)
+        axis.plot(dates, new_cases/cases*100, style, label=state, linewidth=lineweight)
     else:
         axis.loglog(cases, new_cases*offset, style, label=state, linewidth=lineweight)
 
@@ -77,7 +76,7 @@ def plot_county(cases_by_county, county_state, axis, num_days, min_cases=10, lin
     cases, new_cases, dates = compute_new_cases(cases, dates, num_days)
     county, state = county_state
     if percent:
-        axis.semilogx(cases, new_cases/cases*100, style, label=f"{county}, {state}", linewidth=lineweight)
+        axis.plot(dates, new_cases/cases*100, style, label=f"{county}, {state}", linewidth=lineweight)
     else:
         axis.loglog(cases, new_cases, style, label=f"{county}, {state}", linewidth=lineweight)
 
@@ -157,7 +156,7 @@ if __name__=='__main__':
 
     num_counties_to_plot=args.nc
     num_states_to_plot=args.ns
-    fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2,figsize=[16, 8])
+    fig, ((county_0, state_0),(county_1, state_1)) = plt.subplots(nrows=2, ncols=2,figsize=[16, 8])
 
     df_county = pd.read_csv("covid-19-data/us-counties.csv")
     df_state = pd.read_csv("covid-19-data/us-states.csv")
@@ -165,15 +164,13 @@ if __name__=='__main__':
     cases_by_county = df_to_dict_county(df_county)
     sorted_counties = counties_by_num_cases(cases_by_county)
     for county_state in sorted_counties[:num_counties_to_plot]:
-        plot_county(cases_by_county, county_state, num_days = args.days, min_cases=300, axis=ax0, lineweight=2, style="-", percent=args.percent)
+        plot_county(cases_by_county, county_state, num_days = args.days, min_cases=300, axis=county_0, lineweight=2, style="-", percent=True)
+        plot_county(cases_by_county, county_state, num_days = args.days, min_cases=300, axis=county_1, lineweight=2, style="-", percent=False)
     for county, state in parse_counties(args.counties):
         county_state = (county, state)
-        plot_county(cases_by_county, county_state, num_days = args.days, min_cases=300, axis=ax0, lineweight=4, style="-", percent=args.percent)
+        plot_county(cases_by_county, county_state, num_days = args.days, min_cases=300, axis=county_0, lineweight=4, style="-", percent=True)
+        plot_county(cases_by_county, county_state, num_days = args.days, min_cases=300, axis=county_1, lineweight=4, style="-", percent=False)
 
-    ax0.set_xlabel("Total Cases")
-    ax0.set_title(f"Top {num_counties_to_plot} counties in the USA, by number of cases, as of {latest_date(df_county)}\nScript last run {get_time()}")
-    ax0.grid()
-    ax0.legend(loc="upper left")
 
     cases_by_state = df_to_dict_state(df_state)
     states = states_by_num_cases(cases_by_state)
@@ -182,28 +179,36 @@ if __name__=='__main__':
     base = 1
     exponent = 10
     for state in states[:num_states_to_plot]:
-        plot_state(cases_by_state, state, ax1, lineweight=2, num_days=args.days, offset = base**exponent, style="-", percent=args.percent)
+        plot_state(cases_by_state, state, state_0, lineweight=2, num_days=args.days, offset = base**exponent, style="-", percent=True)
+        plot_state(cases_by_state, state, state_1, lineweight=2, num_days=args.days, offset = base**exponent, style="-", percent=False)
         exponent += 1
     for state in my_states:
-        plot_state(cases_by_state, state, ax1, lineweight=4, num_days=args.days, offset=base**exponent, style="-*", percent=args.percent)
+        plot_state(cases_by_state, state, state_0, lineweight=4, num_days=args.days, offset=base**exponent, style="-*", percent=True)
+        plot_state(cases_by_state, state, state_1, lineweight=4, num_days=args.days, offset=base**exponent, style="-*", percent=False)
         exponent += 1
 
-    ax1.set_xlabel("Total Cases")
-    ax1.set_title(f"Top {num_states_to_plot} states, as of {latest_date(df_state)}\nScript last run {get_time()}")
-    ax1.grid()
-    ax1.legend(loc="upper left")
+    all_axes = [county_0, county_1, state_0, state_1]
+    [ax.grid(True) for ax in all_axes]
 
-    ax0.set_xlim(10**1, 10**5)
-    ax1.set_xlim(10**1, 10**5)
-    if args.percent:
-        ax0.set_ylabel(f"Growth Rate per day (%), averaged over {args.days} days")
-        ax1.set_ylabel(f"Growth Rate per day (%), averaged over {args.days} days")
-        ax0.set_ylim(0, 40)
-        ax1.set_ylim(0, 40)
-    else:
-        ax0.set_ylabel(f"New Cases per day, averaged over {args.days} days")
-        ax1.set_ylabel(f"New Cases per day, averaged over {args.days} days")
-        ax0.set_ylim(10**0, 10**4)
-        ax1.set_ylim(10**0, 10**4)
+    county_0.set_xlabel("Date")
+    county_0.set_title(f"Top {num_counties_to_plot} counties in the USA, by number of cases, as of {latest_date(df_county)}\nScript last run {get_time()}")
+    county_0.legend(loc="upper left")
+
+    state_0.set_xlabel("Date")
+    state_0.set_title(f"Top {num_states_to_plot} states, as of {latest_date(df_state)}\nScript last run {get_time()}")
+    state_0.legend(loc="upper left")
+
+    state_1.set_title(f"Top {num_states_to_plot} states, as of {latest_date(df_state)}\nScript last run {get_time()}")
+    state_1.set_xlabel("Total Cases")
+
+    county_0.set_ylabel(f"Growth Rate per day (%), averaged over {args.days} days")
+    state_0.set_ylabel(f"Growth Rate per day (%), averaged over {args.days} days")
+    county_0.set_ylim(0, 40)
+    state_0.set_ylim(0, 40)
+
+    county_1.set_ylabel(f"New Cases per day, averaged over {args.days} days")
+    state_1.set_ylabel(f"New Cases per day, averaged over {args.days} days")
+    county_1.set_ylim(10**0, 10**4)
+    state_1.set_ylim(10**0, 10**4)
     fig.savefig("covid_plot.jpg")
     plt.show()
