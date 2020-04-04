@@ -14,6 +14,8 @@ import argparse
 import subprocess
 from datetime import datetime
 
+class NotEnoughCases(Exception):
+    pass
 
 def get_args():
     p = argparse.ArgumentParser()
@@ -55,6 +57,8 @@ def compute_new_cases(cases, dates, num_days):
     new_cases = moving_average(new_cases, num_days)
 
     mask = new_cases != 0
+    if len(mask) != len(cases):
+        raise NotEnoughCases()
     cases = cases[mask]
     new_cases = new_cases[mask]
     dates = dates[mask]
