@@ -66,8 +66,20 @@ def update_county_plot(percent):
         if i >= top_n:
             visible='legendonly'
         fig.add_trace(go.Scatter(x=x, y=y, mode='lines+markers', name=label, visible=visible))
-    if not percent:
-        fig.update_layout(xaxis_type='log', yaxis_type='log')
+    if percent:
+        fig.update_layout(title="US Counties",
+                          xaxis_title="Date",
+                          yaxis_title="Growth rate per day (%)",
+                          
+        )
+    else:
+        fig.update_layout(title="US Counties",
+                          xaxis_title="Total Number of Cases",
+                          yaxis_title="New Cases per day, 5 day average",
+                          xaxis_type='log',
+                          yaxis_type='log',
+                          
+        )
     return fig
 
 def update_state_plot(percent):
@@ -89,8 +101,19 @@ def update_state_plot(percent):
         if i >= top_n:
             visible='legendonly'
         fig.add_trace(go.Scatter(x=x, y=y, mode='lines+markers', name=label, visible=visible))
-    if not percent:
-        fig.update_layout(xaxis_type='log', yaxis_type='log')
+    if percent:
+        fig.update_layout(title="US States",
+                          xaxis_title="Date",
+                          yaxis_title="Growth rate per day (%)",
+        )
+    else:
+        fig.update_layout(title="US States",
+                          xaxis_title="Total Number of Cases",
+                          yaxis_title="New Cases per day, 5 day average",
+                          xaxis_type='log',
+                          yaxis_type='log',
+                          
+        )
     return fig
 
 external_stylesheets = [
