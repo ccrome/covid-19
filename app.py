@@ -5,16 +5,12 @@ from dash.dependencies import Output, Input
 import covid_19
 import pandas as pd
 import plotly.graph_objects as go
-import git
 from apscheduler.schedulers.background import BackgroundScheduler
 import subprocess
 
 from git import Repo
 subprocess.call(["rm", "-rf", "covid-19-data"])
-git.Git(".").clone("https://github.com/nytimes/covid-19-data.git")
-
-repo = Repo("covid-19-data")
-origin=repo.remotes.origin
+subprocess.call(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
 
 def plot_county(cases_by_county, county_state, num_days, min_cases=10, lineweight=1, percent=False):
     cases = cases_by_county[county_state]["cases"]
@@ -176,9 +172,8 @@ cases_by_county = None
 cases_by_state = None
 
 def update_data():
-    global origin
-    global cases_by_county, cases_by_state
-    origin.pull()   # Check for updates at page load.
+    global cases_by_state, cases_by_county
+    subprocess.call(["git", "pull"], cwd="covid-19-data")
     df_county = pd.read_csv("covid-19-data/us-counties.csv")
     df_state = pd.read_csv("covid-19-data/us-states.csv")
     cases_by_state = covid_19.df_to_dict_state(df_state)
