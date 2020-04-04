@@ -8,9 +8,6 @@ import plotly.graph_objects as go
 from apscheduler.schedulers.background import BackgroundScheduler
 import subprocess
 
-from git import Repo
-subprocess.call(["rm", "-rf", "covid-19-data"])
-subprocess.call(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
 
 def plot_county(cases_by_county, county_state, num_days, min_cases=10, lineweight=1, percent=False):
     cases = cases_by_county[county_state]["cases"]
@@ -171,13 +168,24 @@ main_area=html.Div([control_pane, plot_pane, ])
 cases_by_county = None
 cases_by_state = None
 
-def update_data():
+def del_and_clone():
+    subprocess.call(["rm", "-rf", "covid-19-data"])
+    subprocess.call(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
+
+def pull():
     global cases_by_state, cases_by_county
     subprocess.call(["git", "pull"], cwd="covid-19-data")
     df_county = pd.read_csv("covid-19-data/us-counties.csv")
     df_state = pd.read_csv("covid-19-data/us-states.csv")
     cases_by_state = covid_19.df_to_dict_state(df_state)
     cases_by_county = covid_19.df_to_dict_county(df_county)
+    
+def update_data():
+    try:
+        pull()
+    except:
+        del_and_clone()
+        pull()
     
 def serve_layout():
     global cases_by_county, cases_by_state
@@ -189,7 +197,7 @@ def serve_layout():
 
 app.layout = serve_layout
 
-update_data()
+del_and_clone()
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=update_data, trigger="interval", seconds=3600) # update the data once an hour
 scheduler.start()
