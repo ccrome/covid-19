@@ -7,13 +7,11 @@ import pandas as pd
 import plotly.graph_objects as go
 import git
 from apscheduler.schedulers.background import BackgroundScheduler
-
+import subprocess
 
 from git import Repo
-try:
-    git.Git(".").clone("https://github.com/nytimes/covid-19-data.git")
-except git.exc.GitCommandError:
-    pass
+subprocess.call(["rm", "-rf", "covid-19-data"])
+git.Git(".").clone("https://github.com/nytimes/covid-19-data.git")
 
 repo = Repo("covid-19-data")
 origin=repo.remotes.origin
@@ -178,6 +176,7 @@ cases_by_county = None
 cases_by_state = None
 
 def update_data():
+    global origin
     global cases_by_county, cases_by_state
     origin.pull()   # Check for updates at page load.
     df_county = pd.read_csv("covid-19-data/us-counties.csv")
