@@ -4,10 +4,10 @@ import dash_html_components as html
 from dash.dependencies import Output, Input
 import covid_19
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np
 import git
+from apscheduler.schedulers.background import BackgroundScheduler
+
 
 from git import Repo
 try:
@@ -20,6 +20,7 @@ origin=repo.remotes.origin
 
 def plot_county(cases_by_county, county_state, num_days, min_cases=10, lineweight=1, percent=False):
     cases = cases_by_county[county_state]["cases"]
+    deaths = cases_by_county[county_state]["deaths"]
     dates = cases_by_county[county_state]["date"]
     cases, new_cases, dates = covid_19.compute_new_cases(cases, dates, num_days)
     county, state = county_state
@@ -29,11 +30,12 @@ def plot_county(cases_by_county, county_state, num_days, min_cases=10, lineweigh
     else:
         x = cases
         y = new_cases
-    label=f"{county}, {state}"
+    label=f"{county}, {state} ({int(cases[-1])}, {int(deaths[-1])})"
     return x, y, label
 
 def plot_state(states, state, num_days, min_cases=10, lineweight=1, percent=False):
     dates = states[state]["date"]
+    deaths = states[state]["deaths"]
     cases = states[state]["cases"]
     cases, new_cases, dates = covid_19.compute_new_cases(cases, dates, num_days)
     if percent:
@@ -42,42 +44,59 @@ def plot_state(states, state, num_days, min_cases=10, lineweight=1, percent=Fals
     else:
         x = cases
         y = new_cases
-    label=f"{state}"
+    label=f"{state} ({cases[-1]}, {deaths[-1]})"
     return x, y, label
     
+
+def arrange_counties(sorted_counties, my_counties, top_n):
+    top_counties = sorted_counties[:top_n]
+    bottom_counties = sorted_counties[top_n:]
+    for i, my_county in enumerate(my_counties):
+        if my_county not in sorted_counties:
+            print(f"Huh, {my_county} doesn't exist.")
+        if my_county in sorted_counties:
+            if my_county in sorted_counties and my_county in bottom_counties:
+                top_counties.append(my_county)
+                bottom_counties.remove(my_county)
+            top_n += 1
+    top_counties.extend(bottom_counties)
+    sorted_counties = top_counties
+    return sorted_counties, top_n
 
 def update_county_plot(percent, cases_by_county):
     top_n = 10
     n = 200
     sorted_counties = covid_19.counties_by_num_cases(cases_by_county)
-    top_counties = sorted_counties[:top_n]
-    bottom_counties = sorted(sorted_counties[top_n:n], key=lambda x: f"{x[0], x[1]}")
-    top_counties.extend(bottom_counties)
-    sorted_counties = top_counties
+    
+    my_counties = [
+        ("Santa Clara", "California"),
+        ("Marin", "California"),
+    ]
+    sorted_counties, top_n = arrange_counties(sorted_counties, my_counties, top_n)
+    sorted_counties = sorted_counties[:n]
     fig = go.Figure()
     for i, county_state in enumerate(sorted_counties[:n]):
         try:
-            x, y, label = plot_county(cases_by_county, county_state, num_days = 5, min_cases=300, lineweight=2, percent=percent)
+            lw = 1
+            if county_state in my_counties:
+                lw = 4
+            x, y, label = plot_county(cases_by_county, county_state, num_days = 5, min_cases=300, lineweight=lw, percent=percent)
         except covid_19.NotEnoughCases:
             continue
         visible=True
         if i >= top_n:
             visible='legendonly'
-        fig.add_trace(go.Scatter(x=x, y=y, mode='lines+markers', name=label, visible=visible))
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines+markers', name=label, visible=visible, line=dict(width=lw)))
     if percent:
         fig.update_layout(title="US Counties",
                           xaxis_title="Date",
-                          yaxis_title="Growth rate per day (%)",
-                          
-        )
+                          yaxis_title="Growth rate per day (%)",)
     else:
         fig.update_layout(title="US Counties",
                           xaxis_title="Total Number of Cases",
                           yaxis_title="New Cases per day, 5 day average",
                           xaxis_type='log',
-                          yaxis_type='log',
-                          
-        )
+                          yaxis_type='log',)
     return fig
 
 def update_state_plot(percent, cases_by_state):
@@ -157,7 +176,8 @@ main_area=html.Div([control_pane, plot_pane, ])
 
 cases_by_county = None
 cases_by_state = None
-def serve_layout():
+
+def update_data():
     global cases_by_county, cases_by_state
     origin.pull()   # Check for updates at page load.
     df_county = pd.read_csv("covid-19-data/us-counties.csv")
@@ -165,6 +185,8 @@ def serve_layout():
     cases_by_state = covid_19.df_to_dict_state(df_state)
     cases_by_county = covid_19.df_to_dict_county(df_county)
     
+def serve_layout():
+    global cases_by_county, cases_by_state
     layout = html.Div(
         [html.Div(className="row",children=header),
          html.Div(className="row",children=sub_header),
@@ -172,6 +194,11 @@ def serve_layout():
     return layout
 
 app.layout = serve_layout
+
+update_data()
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=update_data, trigger="interval", seconds=3600) # update the data once an hour
+scheduler.start()
 
 @app.callback(
     [Output('county-plot', 'figure'), Output('state-plot', 'figure')],
@@ -183,5 +210,6 @@ def update_plots(percent):
     return county_plot, state_plot
 
 server=app.server
+
 if __name__ == '__main__':
     app.run_server(debug=True)
