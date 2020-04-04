@@ -188,7 +188,6 @@ def update_data():
         pull()
     
 def serve_layout():
-    global cases_by_county, cases_by_state
     layout = html.Div(
         [html.Div(className="row",children=header),
          html.Div(className="row",children=sub_header),
@@ -207,6 +206,7 @@ scheduler.start()
     [Input('pct-checkbox', 'value'),]
     )
 def update_plots(percent):
+    global cases_by_county, cases_by_state
     county_plot = update_county_plot(percent, cases_by_county)
     state_plot = update_state_plot(percent, cases_by_state)
     return county_plot, state_plot
