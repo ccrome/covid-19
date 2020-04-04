@@ -46,11 +46,9 @@ def plot_state(states, state, num_days, min_cases=10, lineweight=1, percent=Fals
     return x, y, label
     
 
-def update_county_plot(percent):
+def update_county_plot(percent, cases_by_county):
     top_n = 10
     n = 200
-    df_county = pd.read_csv("covid-19-data/us-counties.csv")
-    cases_by_county = covid_19.df_to_dict_county(df_county)
     sorted_counties = covid_19.counties_by_num_cases(cases_by_county)
     top_counties = sorted_counties[:top_n]
     bottom_counties = sorted(sorted_counties[top_n:n], key=lambda x: f"{x[0], x[1]}")
@@ -82,10 +80,8 @@ def update_county_plot(percent):
         )
     return fig
 
-def update_state_plot(percent):
+def update_state_plot(percent, cases_by_state):
     top_n = 10
-    df_state = pd.read_csv("covid-19-data/us-states.csv")
-    cases_by_state = covid_19.df_to_dict_state(df_state)
     states = covid_19.states_by_num_cases(cases_by_state)
     top_states = states[:top_n]
     the_rest = states[top_n:]
@@ -143,7 +139,6 @@ sub_header = html.Div(
 
 county_plot = dcc.Graph(
     id='county-plot',
-#    figure=update_county_plot(False),
 )
 state_plot = dcc.Graph(
     id='state-plot',
@@ -159,19 +154,32 @@ plot_pane=html.Div(
 
 control_pane = html.Div(dcc.Checklist(id='pct-checkbox', options=[{'label' : "Plots as Percent", 'value' : 'PCT'}], value=[]))
 main_area=html.Div([control_pane, plot_pane, ])
-app.layout = html.Div(
-    [html.Div(className="row",children=header),
-     html.Div(className="row",children=sub_header),
-     html.Div(className="row",children=main_area)])
+
+cases_by_county = None
+cases_by_state = None
+def serve_layout():
+    global cases_by_county, cases_by_state
+    origin.pull()   # Check for updates at page load.
+    df_county = pd.read_csv("covid-19-data/us-counties.csv")
+    df_state = pd.read_csv("covid-19-data/us-states.csv")
+    cases_by_state = covid_19.df_to_dict_state(df_state)
+    cases_by_county = covid_19.df_to_dict_county(df_county)
+    
+    layout = html.Div(
+        [html.Div(className="row",children=header),
+         html.Div(className="row",children=sub_header),
+         html.Div(className="row",children=main_area)])
+    return layout
+
+app.layout = serve_layout
 
 @app.callback(
     [Output('county-plot', 'figure'), Output('state-plot', 'figure')],
     [Input('pct-checkbox', 'value'),]
     )
 def update_plots(percent):
-    origin.pull()
-    county_plot = update_county_plot(percent)
-    state_plot = update_state_plot(percent)
+    county_plot = update_county_plot(percent, cases_by_county)
+    state_plot = update_state_plot(percent, cases_by_state)
     return county_plot, state_plot
 
 server=app.server
