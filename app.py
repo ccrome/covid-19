@@ -151,5 +151,6 @@ def update_plots(percent):
     state_plot = update_state_plot(percent)
     return county_plot, state_plot
 
+server=app.server
 if __name__ == '__main__':
     app.run_server(debug=True)
