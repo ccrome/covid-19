@@ -7,8 +7,16 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
+import git
 
+from git import Repo
+try:
+    git.Git(".").clone("https://github.com/nytimes/covid-19-data.git")
+except git.exc.GitCommandError:
+    pass
 
+repo = Repo("covid-19-data")
+origin=repo.remotes.origin
 
 def plot_county(cases_by_county, county_state, num_days, min_cases=10, lineweight=1, percent=False):
     cases = cases_by_county[county_state]["cases"]
@@ -112,11 +120,11 @@ sub_header = html.Div(
 
 county_plot = dcc.Graph(
     id='county-plot',
-    figure=update_county_plot(False),
+#    figure=update_county_plot(False),
 )
 state_plot = dcc.Graph(
     id='state-plot',
-    figure=update_state_plot(False),
+#    figure=update_state_plot(False),
 )
 
 plot_pane=html.Div(
@@ -138,6 +146,7 @@ app.layout = html.Div(
     [Input('pct-checkbox', 'value'),]
     )
 def update_plots(percent):
+    origin.pull()
     county_plot = update_county_plot(percent)
     state_plot = update_state_plot(percent)
     return county_plot, state_plot
