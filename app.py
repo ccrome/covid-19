@@ -186,10 +186,12 @@ def pull():
 update_lock = threading.Lock()
 def update_data():
     global update_lock
+    print("updating database")
     update_lock.acquire()
     try:
         pull()
     except:
+        print("update failed.  Trying again")
         n = random.randint(5, 15)
         time.sleep(n)
         del_and_clone()
