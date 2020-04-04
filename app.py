@@ -7,7 +7,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from apscheduler.schedulers.background import BackgroundScheduler
 import subprocess
-
+import random
+import time
+import threading
 
 def plot_county(cases_by_county, county_state, num_days, min_cases=10, lineweight=1, percent=False):
     cases = cases_by_county[county_state]["cases"]
@@ -169,6 +171,7 @@ cases_by_county = None
 cases_by_state = None
 
 def del_and_clone():
+    print("del and clone")
     subprocess.call(["rm", "-rf", "covid-19-data"])
     subprocess.call(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
 
@@ -180,12 +183,18 @@ def pull():
     cases_by_state = covid_19.df_to_dict_state(df_state)
     cases_by_county = covid_19.df_to_dict_county(df_county)
     
+update_lock = threading.Lock()
 def update_data():
+    global update_lock
+    update_lock.acquire()
     try:
         pull()
     except:
+        n = random.randint(5, 15)
+        time.sleep(n)
         del_and_clone()
         pull()
+    update_lock.release()
     
 def serve_layout():
     layout = html.Div(
@@ -196,7 +205,7 @@ def serve_layout():
 
 app.layout = serve_layout
 
-del_and_clone()
+#del_and_clone()
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=update_data, trigger="interval", seconds=3600) # update the data once an hour
 scheduler.start()
@@ -205,8 +214,15 @@ scheduler.start()
     [Output('county-plot', 'figure'), Output('state-plot', 'figure')],
     [Input('pct-checkbox', 'value'),]
     )
+
 def update_plots(percent):
     global cases_by_county, cases_by_state
+    if cases_by_county is None or cases_by_state is None:
+        print("Couldn't get the data.  why is that.  Let's update the data...")
+        update_data()
+        if cases_by_county is None or cases_by_state is None:
+            print("Updated and still can't get the data... drats.")
+            return
     county_plot = update_county_plot(percent, cases_by_county)
     state_plot = update_state_plot(percent, cases_by_state)
     return county_plot, state_plot
