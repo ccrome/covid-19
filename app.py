@@ -272,13 +272,13 @@ def make_plot(df, x_column, y_column, title, xaxis_label, yaxis_label, mode='lin
     return fig
 
 def get_unemployment_plots():
-    new_df, cont_df, employment_level_df, unemployment_df = unemployment.get_unemployment()
-    new_plot = make_plot(new_df, 'DATE', 'ICSA', "Weekly new unemployment claims", "Date", "Claims per week")
-    cont_plot = make_plot(cont_df, 'DATE', 'CCSA', "Weekly continuing unemployment claims", "Date", "Claims per week")
-    employment_plot = make_plot(employment_level_df, 'DATE', 'LNU02000000', "Employment Level", "Date", "Employment")
-    unemployment_plot = make_plot(unemployment_df, 'DATE', 'UNRATE', "Unemployment Rate", "Date", "Unemployment (%)")
-    return new_plot, cont_plot, employment_plot, unemployment_plot
-    
+    unemployment_data = unemployment.get_unemployment_all()
+    plots = {}
+    for k in unemployment_data:
+        df, config = unemployment_data[k]
+        plots[k] = make_plot(df, config['xaxis'], config['yaxis'], config['title'], config['xlabel'], config['ylabel'])
+    return plots
+
 @app.callback(
     [
         Output('county-plot', 'figure'),
@@ -300,8 +300,8 @@ def update_plots(percent):
             return
     county_plot = update_county_plot(percent, cases_by_county)
     state_plot = update_state_plot(percent, cases_by_state)
-    new_unemployment, continuing_unemployment, employment, unemployment = get_unemployment_plots()
-    return county_plot, state_plot, new_unemployment, continuing_unemployment, employment, unemployment
+    fred_plots = get_unemployment_plots()
+    return county_plot, state_plot, fred_plots['new_claims'], fred_plots['cont_claims'], fred_plots['employment'], fred_plots['unemployment']
 
 server=app.server
 
