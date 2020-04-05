@@ -5,11 +5,13 @@ from dash.dependencies import Output, Input
 import covid_19
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 from apscheduler.schedulers.background import BackgroundScheduler
 import subprocess
 import random
 import time
 import threading
+import unemployment
 
 def plot_county(cases_by_county, county_state, num_days, min_cases=10, lineweight=1, percent=False):
     cases = cases_by_county[county_state]["cases"]
@@ -125,29 +127,30 @@ def update_state_plot(percent, cases_by_state):
     return fig
 
 external_stylesheets = [
-    'https://codepen.io/chriddyp/pen/bWLwgP.css',
-#    'https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css',
+#    'https://codepen.io/chriddyp/pen/bWLwgP.css',
+    'https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css',
 ]
 
+
+layout = dict(
+    autosize=True,
+    height=500,
+    font=dict(color="#191A1A"),
+    titlefont=dict(color="#191A1A", size='14'),
+    margin=dict(
+        l=35,
+        r=35,
+        b=35,
+        t=45
+    ),
+    hovermode="closest",
+    plot_bgcolor='#fffcfc',
+    paper_bgcolor='#fffcfc',
+    legend=dict(font=dict(size=10), orientation='h'),
+    title='Each dot is an NYC Middle School eligible for SONYC funding',
+)
+
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-
-colors = {
-    'background': '#111111',
-    'text': '#7FDBFF'
-}
-
-header = html.H1(
-    children=['COVID-19 By County/State'],
-    style={
-        'textAlign': 'center',
-        'color': colors['text']
-    },
-)
-
-sub_header = html.Div(
-    children='''Covid-19 data from the NYT''',
-    style={'textAlign': 'center', 'color': colors['text']},
-)
 
 county_plot = dcc.Graph(
     id='county-plot',
@@ -157,15 +160,33 @@ state_plot = dcc.Graph(
 #    figure=update_state_plot(False),
 )
 
-plot_pane=html.Div(
+new_unemployment_plot = dcc.Graph(id='new-unemployment')
+continuing_unemployment_plot = dcc.Graph(id='continuing-unemployment')
+
+covid_pane=html.Div(
     children=[
-        html.Div(county_plot),
-        html.Div(state_plot),
-    ]
+        html.Div(html.Div(county_plot, className="col-md-12"), className="col-md-12"),
+        html.Div(html.Div(state_plot, className="col-md-12"), className="col-md-12"),
+    ],
+    className="row",
+)
+unemployment_pane=html.Div(
+    children=[
+        html.Div(new_unemployment_plot, className="col-md-6"),
+        html.Div(continuing_unemployment_plot, className="col-md-6"),
+    ],
+    className="row"
 )
 
-control_pane = html.Div(dcc.Checklist(id='pct-checkbox', options=[{'label' : "Plots as Percent", 'value' : 'PCT'}], value=[]))
-main_area=html.Div([control_pane, plot_pane, ])
+title_row = html.Div(
+    children=[
+        html.Div([html.H1("Crome's COVID-19 plotter"), 'Get the source code at ', html.A("GitHub", href="https://github.com/ccrome/covid-19", target="_blank")], className="col-md-9"),
+        html.Div(dcc.Checklist(id='pct-checkbox', options=[{'label' : "Plots as Percent", 'value' : 'PCT'}], value=[]), className="col-md-3"),
+    ],
+    className="row"
+)
+
+main_area = html.Div([title_row, covid_pane, unemployment_pane], className="container")
 
 cases_by_county = None
 cases_by_state = None
@@ -198,12 +219,9 @@ def update_data():
         pull()
     update_lock.release()
     
+
 def serve_layout():
-    layout = html.Div(
-        [html.Div(className="row",children=header),
-         html.Div(className="row",children=sub_header),
-         html.Div(className="row",children=main_area)])
-    return layout
+    return main_area
 
 app.layout = serve_layout
 
@@ -212,11 +230,28 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(func=update_data, trigger="interval", seconds=3600) # update the data once an hour
 scheduler.start()
 
-@app.callback(
-    [Output('county-plot', 'figure'), Output('state-plot', 'figure')],
-    [Input('pct-checkbox', 'value'),]
-    )
 
+def make_plot(df, x_column, y_column, title, xaxis_label, yaxis_label, mode='lines+markers'):
+    fig = px.line(df, x=x_column, y=y_column)
+    fig.update_layout(title=title, xaxis_title=xaxis_label, yaxis_title=yaxis_label)
+    fig.data[0].update(mode='markers+lines')
+    return fig
+
+def get_unemployment_plots():
+    new_df, cont_df = unemployment.get_unemployment()
+    new_plot = make_plot(new_df, 'DATE', 'ICSA', "Weekly new unemployment claims", "Date", "Claims per week")
+    cont_plot = make_plot(cont_df, 'DATE', 'CCSA', "Weekly continuing unemployment claims", "Date", "Claims per week")
+    return new_plot, cont_plot
+    
+@app.callback(
+    [
+        Output('county-plot', 'figure'),
+        Output('state-plot', 'figure'),
+        Output('new-unemployment', 'figure'),
+        Output('continuing-unemployment', 'figure')
+    ],
+    [Input('pct-checkbox', 'value')]
+    )
 def update_plots(percent):
     global cases_by_county, cases_by_state
     if cases_by_county is None or cases_by_state is None:
@@ -227,7 +262,8 @@ def update_plots(percent):
             return
     county_plot = update_county_plot(percent, cases_by_county)
     state_plot = update_state_plot(percent, cases_by_state)
-    return county_plot, state_plot
+    new_unemployment, continuing_unemployment = get_unemployment_plots()
+    return county_plot, state_plot, new_unemployment, continuing_unemployment
 
 server=app.server
 

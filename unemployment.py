@@ -37,5 +37,3 @@ def get_unemployment():
     new_claims = _get_df(new_claims_url, "new_claims.csv")
     continuing_claims = _get_df(continuing_claims_url, "continuing_claims.csv")
     return new_claims, continuing_claims
-
-print (get_unemployment())
