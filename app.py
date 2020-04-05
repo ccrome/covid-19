@@ -12,7 +12,17 @@ import random
 import time
 import threading
 import unemployment
+import json
 
+def state_to_abbr(state):
+    state_map = json.loads(open("name-abbr.json").read())
+    if state in state_map:
+        state = state_map[state]
+    else:
+        if len(state) > 2:
+            state = state[:2]
+    return state
+    
 def plot_county(cases_by_county, county_state, num_days, min_cases=10, lineweight=1, percent=False):
     cases = cases_by_county[county_state]["cases"]
     deaths = cases_by_county[county_state]["deaths"]
@@ -25,7 +35,9 @@ def plot_county(cases_by_county, county_state, num_days, min_cases=10, lineweigh
     else:
         x = cases
         y = new_cases
-    label=f"{county}, {state} ({int(cases[-1])}, {int(deaths[-1])})"
+    state = state_to_abbr(state)
+    #label=f"{county}, {state} ({int(cases[-1])}, {int(deaths[-1])})"
+    label=f"{county},{state}({int(deaths[-1])})"
     return x, y, label
 
 def plot_state(states, state, num_days, min_cases=10, lineweight=1, percent=False):
@@ -39,7 +51,7 @@ def plot_state(states, state, num_days, min_cases=10, lineweight=1, percent=Fals
     else:
         x = cases
         y = new_cases
-    label=f"{state} ({cases[-1]}, {deaths[-1]})"
+    label=f"{state_to_abbr(state)} ({int(cases[-1])}, {int(deaths[-1])})"
     return x, y, label
     
 
@@ -83,11 +95,11 @@ def update_county_plot(percent, cases_by_county):
             visible='legendonly'
         fig.add_trace(go.Scatter(x=x, y=y, mode='lines+markers', name=label, visible=visible, line=dict(width=lw)))
     if percent:
-        fig.update_layout(title="US Counties",
+        fig.update_layout(title="US Counties (deaths in parenthesis)",
                           xaxis_title="Date",
                           yaxis_title="Growth rate per day (%)",)
     else:
-        fig.update_layout(title="US Counties",
+        fig.update_layout(title="US Counties (deaths in parenthesis)",
                           xaxis_title="Total Number of Cases",
                           yaxis_title="New Cases per day, 5 day average",
                           xaxis_type='log',
@@ -268,4 +280,4 @@ def update_plots(percent):
 server=app.server
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, host="0.0.0.0")
