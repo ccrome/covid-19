@@ -245,7 +245,18 @@ scheduler.start()
 
 def make_plot(df, x_column, y_column, title, xaxis_label, yaxis_label, mode='lines+markers'):
     fig = px.line(df, x=x_column, y=y_column)
-    fig.update_layout(title=title, xaxis_title=xaxis_label, yaxis_title=yaxis_label)
+    fig.update_layout(
+        title=title,
+        xaxis_title=xaxis_label,
+        yaxis_title=yaxis_label,
+        showlegend=False,
+        margin=dict(
+            l=0,
+            r=0,
+            b=0,
+            t=30,
+            pad=0
+        ))
     fig.data[0].update(mode='markers+lines')
     return fig
 
