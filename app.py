@@ -174,6 +174,8 @@ state_plot = dcc.Graph(
 
 new_unemployment_plot = dcc.Graph(id='new-unemployment')
 continuing_unemployment_plot = dcc.Graph(id='continuing-unemployment')
+employment_plot = dcc.Graph(id='employment')
+unemployment_plot = dcc.Graph(id='unemployment')
 
 covid_pane=html.Div(
     children=[
@@ -183,11 +185,20 @@ covid_pane=html.Div(
     className="row",
 )
 unemployment_pane=html.Div(
-    children=[
-        html.Div(new_unemployment_plot, className="col-md-6"),
-        html.Div(continuing_unemployment_plot, className="col-md-6"),
-    ],
-    className="row"
+    [
+        html.Div(
+            [
+                html.Div(new_unemployment_plot, className="col-md-6"),
+                html.Div(continuing_unemployment_plot, className="col-md-6"),
+            ],
+            className="row"),
+        html.Div(
+            [
+                html.Div(employment_plot, className="col-md-6"),
+                html.Div(unemployment_plot, className="col-md-6"),
+            ],
+            className="row"),
+    ]
 )
 
 title_row = html.Div(
@@ -261,17 +272,21 @@ def make_plot(df, x_column, y_column, title, xaxis_label, yaxis_label, mode='lin
     return fig
 
 def get_unemployment_plots():
-    new_df, cont_df = unemployment.get_unemployment()
+    new_df, cont_df, employment_level_df, unemployment_df = unemployment.get_unemployment()
     new_plot = make_plot(new_df, 'DATE', 'ICSA', "Weekly new unemployment claims", "Date", "Claims per week")
     cont_plot = make_plot(cont_df, 'DATE', 'CCSA', "Weekly continuing unemployment claims", "Date", "Claims per week")
-    return new_plot, cont_plot
+    employment_plot = make_plot(employment_level_df, 'DATE', 'LNU02000000', "Employment Level", "Date", "Employment")
+    unemployment_plot = make_plot(unemployment_df, 'DATE', 'UNRATE', "Unemployment Rate", "Date", "Unemployment (%)")
+    return new_plot, cont_plot, employment_plot, unemployment_plot
     
 @app.callback(
     [
         Output('county-plot', 'figure'),
         Output('state-plot', 'figure'),
         Output('new-unemployment', 'figure'),
-        Output('continuing-unemployment', 'figure')
+        Output('continuing-unemployment', 'figure'),
+        Output('employment', 'figure'),
+        Output('unemployment', 'figure'),
     ],
     [Input('pct-checkbox', 'value')]
     )
@@ -285,8 +300,8 @@ def update_plots(percent):
             return
     county_plot = update_county_plot(percent, cases_by_county)
     state_plot = update_state_plot(percent, cases_by_state)
-    new_unemployment, continuing_unemployment = get_unemployment_plots()
-    return county_plot, state_plot, new_unemployment, continuing_unemployment
+    new_unemployment, continuing_unemployment, employment, unemployment = get_unemployment_plots()
+    return county_plot, state_plot, new_unemployment, continuing_unemployment, employment, unemployment
 
 server=app.server
 
