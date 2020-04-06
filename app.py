@@ -175,6 +175,7 @@ state_plot = dcc.Graph(
 
 new_unemployment_plot = dcc.Graph(id='new-unemployment')
 continuing_unemployment_plot = dcc.Graph(id='continuing-unemployment')
+new_unemployment_pct_plot = dcc.Graph(id='new-unemployment-pct')
 employment_plot = dcc.Graph(id='employment')
 unemployment_plot = dcc.Graph(id='unemployment')
 
@@ -197,6 +198,11 @@ unemployment_pane=html.Div(
             [
                 html.Div(employment_plot, className="col-md-6"),
                 html.Div(unemployment_plot, className="col-md-6"),
+            ],
+            className="row"),
+        html.Div(
+            [
+                html.Div(new_unemployment_pct_plot, className="col-md-12"),
             ],
             className="row"),
     ]
@@ -288,6 +294,7 @@ def get_unemployment_plots():
         Output('continuing-unemployment', 'figure'),
         Output('employment', 'figure'),
         Output('unemployment', 'figure'),
+        Output('new-unemployment-pct', 'figure'),
     ],
     [Input('pct-checkbox', 'value')]
     )
@@ -302,7 +309,21 @@ def update_plots(percent):
     county_plot = update_county_plot(percent, cases_by_county)
     state_plot = update_state_plot(percent, cases_by_state)
     fred_plots = get_unemployment_plots()
-    return county_plot, state_plot, fred_plots['new_claims'], fred_plots['cont_claims'], fred_plots['employment'], fred_plots['unemployment']
+
+    new_unemployment_df = unemployment.get_df('ICSA')
+    cont_unemployment_df = unemployment.get_df('CCSA')
+    tot_employment_df = unemployment.get_df('LNU02000000')
+
+
+    icsa_dates, icsa_pct = unemployment.get_as_part_of_employment('ICSA')
+    ccsa_dates, ccsa_pct = unemployment.get_as_part_of_employment('CCSA')
+    icsa_pct_fig = go.Figure()
+    icsa_pct_fig.add_trace(go.Scatter(x=icsa_dates, y=icsa_pct*100, mode='lines+markers', name="New Claims"))
+    icsa_pct_fig.add_trace(go.Scatter(x=ccsa_dates, y=ccsa_pct*100, mode='lines+markers', name="Cont. Claims"))
+    icsa_pct_fig.update_layout(title="Unemployment Claims as percent of total workforce",
+                               xaxis_title="Date",
+                               yaxis_title="Percent (%)")
+    return county_plot, state_plot, fred_plots['new_claims'], fred_plots['cont_claims'], fred_plots['employment'], fred_plots['unemployment'], icsa_pct_fig
 
 server=app.server
 

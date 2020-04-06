@@ -3,6 +3,7 @@ import urllib.request
 import pandas as pd
 import os
 import time
+import numpy as np
 
 class UnemploymentDataException(Exception):
     pass
@@ -17,8 +18,11 @@ plots_config = dict(
 )
 
 update_lock = threading.Lock()
-def _get_df(url, local_fn, expiry_age = 60*60*24):
+def get_df(fred_id, local_fn=None, expiry_age = 60*60*24):
     """Gets the url as a pandas dataframe.  Only retrieves new data once a day"""
+    if local_fn is None:
+        local_fn = f"{fred_id}.csv"
+    url = fred_url_base + fred_id
     do_update = True
     if os.path.exists(local_fn):
         mtime = os.path.getmtime(local_fn)
@@ -44,8 +48,8 @@ def get_unemployment(name):
         config['xaxis']='DATE'
     if 'yaxis' not in config:
         config['yaxis']=config['fred_id']
-    url = fred_url_base + config['fred_id']
-    df = _get_df(url, config['fred_id']+'.csv')
+    fred_id=config['fred_id']
+    df = get_df(fred_id, config['fred_id']+'.csv')
     if 'apply' in config:
         df[config['fred_id']] = df[config['fred_id']].apply(config['apply'])
     return df, config
@@ -55,3 +59,16 @@ def get_unemployment_all():
     for k in plots_config:
         results[k] = get_unemployment(k)
     return results
+
+def get_as_part_of_employment(key):
+    """Get's a FRED key as a fraction of the total employment level.  Returns dates, fraction"""
+    icsa = get_df(key)
+    employment = get_df('LNU02000000')
+    x0 = np.array(icsa['DATE'].values, dtype=np.datetime64)
+    y0 = icsa[key].values
+    x1 = np.array(employment['DATE'].values, dtype=np.datetime64)
+    y1 = employment['LNU02000000'].values * 1000
+    a = x0.astype(int, casting='unsafe')
+    b = x1.astype(int, casting='unsafe')
+    interp_employ = np.interp(a, b, y1)
+    return x0, y0/interp_employ
