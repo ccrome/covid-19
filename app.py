@@ -163,6 +163,7 @@ layout = dict(
 )
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app.title="COVID-19 Dashboard"
 
 county_plot = dcc.Graph(
     id='county-plot',
