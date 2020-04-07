@@ -14,6 +14,8 @@ import threading
 import unemployment
 import json
 
+from flask_caching import Cache
+
 def state_to_abbr(state):
     state_map = json.loads(open("name-abbr.json").read())
     if state in state_map:
@@ -162,8 +164,6 @@ layout = dict(
     title='Each dot is an NYC Middle School eligible for SONYC funding',
 )
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-app.title="COVID-19 Dashboard"
 
 county_plot = dcc.Graph(
     id='county-plot',
@@ -253,7 +253,15 @@ def update_data():
 def serve_layout():
     return main_area
 
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app.title="COVID-19 Dashboard"
 app.layout = serve_layout
+server=app.server
+cache = Cache(app.server, config={
+    'CACHE_TYPE':'filesystem',
+    'CACHE_DIR':'cache',
+})
+app.config.suppress_callback_exceptions = True
 
 #del_and_clone()
 scheduler = BackgroundScheduler()
@@ -298,6 +306,7 @@ def get_unemployment_plots():
     ],
     [Input('pct-checkbox', 'value')]
     )
+@cache.memoize(timeout=100)
 def update_plots(percent):
     global cases_by_county, cases_by_state
     if cases_by_county is None or cases_by_state is None:
@@ -325,7 +334,6 @@ def update_plots(percent):
                                yaxis_title="Percent (%)")
     return county_plot, state_plot, fred_plots['new_claims'], fred_plots['cont_claims'], fred_plots['employment'], fred_plots['unemployment'], icsa_pct_fig
 
-server=app.server
 
 if __name__ == '__main__':
     app.run_server(debug=True, host="0.0.0.0")
