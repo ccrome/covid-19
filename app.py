@@ -317,10 +317,9 @@ def get_unemployment_plots():
         plots[k] = make_plot(df, config['xaxis'], config['yaxis'], config['title'], config['xlabel'], config['ylabel'])
     return plots
 
+
 @app.callback(
     [
-        Output('county-plot', 'figure'),
-        Output('state-plot', 'figure'),
         Output('new-unemployment', 'figure'),
         Output('continuing-unemployment', 'figure'),
         Output('employment', 'figure'),
@@ -329,9 +328,31 @@ def get_unemployment_plots():
     ],
     [
         Input('pct-checkbox', 'value'),
+    ])
+@cache.memoize(timeout=3600*4)
+def update_employment_plots(pct_checkbox):
+    fred_plots = get_unemployment_plots()
+
+    icsa_dates, icsa_pct = unemployment.get_as_part_of_employment('ICSA')
+    ccsa_dates, ccsa_pct = unemployment.get_as_part_of_employment('CCSA')
+    icsa_pct_fig = go.Figure()
+    icsa_pct_fig.add_trace(go.Scatter(x=icsa_dates, y=icsa_pct*100, mode='lines+markers', name="New Claims"))
+    icsa_pct_fig.add_trace(go.Scatter(x=ccsa_dates, y=ccsa_pct*100, mode='lines+markers', name="Cont. Claims"))
+    icsa_pct_fig.update_layout(title="Unemployment Claims as percent of total workforce",
+                               xaxis_title="Date",
+                               yaxis_title="Percent (%)")
+    return fred_plots['new_claims'], fred_plots['cont_claims'], fred_plots['employment'], fred_plots['unemployment'], icsa_pct_fig    
+
+@app.callback(
+    [
+        Output('county-plot', 'figure'),
+        Output('state-plot', 'figure'),
+    ],
+    [
+        Input('pct-checkbox', 'value'),
         Input('days-slider', 'value'),
     ])
-@cache.memoize(timeout=100)
+@cache.memoize(timeout=3600*4)
 def update_plots(percent, days):
     global cases_by_county, cases_by_state
     if cases_by_county is None or cases_by_state is None:
@@ -342,22 +363,7 @@ def update_plots(percent, days):
             return
     county_plot = update_county_plot(percent, cases_by_county, days)
     state_plot = update_state_plot(percent, cases_by_state, days)
-    fred_plots = get_unemployment_plots()
-
-    new_unemployment_df = unemployment.get_df('ICSA')
-    cont_unemployment_df = unemployment.get_df('CCSA')
-    tot_employment_df = unemployment.get_df('LNU02000000')
-
-
-    icsa_dates, icsa_pct = unemployment.get_as_part_of_employment('ICSA')
-    ccsa_dates, ccsa_pct = unemployment.get_as_part_of_employment('CCSA')
-    icsa_pct_fig = go.Figure()
-    icsa_pct_fig.add_trace(go.Scatter(x=icsa_dates, y=icsa_pct*100, mode='lines+markers', name="New Claims"))
-    icsa_pct_fig.add_trace(go.Scatter(x=ccsa_dates, y=ccsa_pct*100, mode='lines+markers', name="Cont. Claims"))
-    icsa_pct_fig.update_layout(title="Unemployment Claims as percent of total workforce",
-                               xaxis_title="Date",
-                               yaxis_title="Percent (%)")
-    return county_plot, state_plot, fred_plots['new_claims'], fred_plots['cont_claims'], fred_plots['employment'], fred_plots['unemployment'], icsa_pct_fig
+    return county_plot, state_plot
 
 
 if __name__ == '__main__':
