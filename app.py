@@ -16,6 +16,8 @@ import json
 
 from flask_caching import Cache
 
+
+
 def state_to_abbr(state):
     state_map = json.loads(open("name-abbr.json").read())
     if state in state_map:
@@ -72,7 +74,7 @@ def arrange_counties(sorted_counties, my_counties, top_n):
     sorted_counties = top_counties
     return sorted_counties, top_n
 
-def update_county_plot(percent, cases_by_county):
+def update_county_plot(percent, cases_by_county, num_days):
     top_n = 10
     n = 200
     sorted_counties = covid_19.counties_by_num_cases(cases_by_county)
@@ -89,7 +91,7 @@ def update_county_plot(percent, cases_by_county):
             lw = 1
             if county_state in my_counties:
                 lw = 4
-            x, y, label = plot_county(cases_by_county, county_state, num_days = 5, min_cases=300, lineweight=lw, percent=percent)
+            x, y, label = plot_county(cases_by_county, county_state, num_days = num_days, min_cases=300, lineweight=lw, percent=percent)
         except covid_19.NotEnoughCases:
             continue
         visible=True
@@ -103,12 +105,12 @@ def update_county_plot(percent, cases_by_county):
     else:
         fig.update_layout(title="US Counties (deaths in parenthesis)",
                           xaxis_title="Total Number of Cases",
-                          yaxis_title="New Cases per day, 5 day average",
+                          yaxis_title=f"New Cases per day, {num_days} day average",
                           xaxis_type='log',
                           yaxis_type='log',)
     return fig
 
-def update_state_plot(percent, cases_by_state):
+def update_state_plot(percent, cases_by_state, num_days):
     top_n = 10
     states = covid_19.states_by_num_cases(cases_by_state)
     top_states = states[:top_n]
@@ -118,7 +120,7 @@ def update_state_plot(percent, cases_by_state):
     fig = go.Figure()
     for i, state in enumerate(states):
         try:
-            x, y, label = plot_state(cases_by_state, state, num_days = 5, lineweight=1, percent=percent)
+            x, y, label = plot_state(cases_by_state, state, num_days=num_days, lineweight=1, percent=percent)
         except covid_19.NotEnoughCases:
             continue
         visible=True
@@ -133,7 +135,7 @@ def update_state_plot(percent, cases_by_state):
     else:
         fig.update_layout(title="US States",
                           xaxis_title="Total Number of Cases",
-                          yaxis_title="New Cases per day, 5 day average",
+                          yaxis_title=f"New Cases per day, {num_days} day average",
                           xaxis_type='log',
                           yaxis_type='log',
                           
@@ -211,7 +213,23 @@ unemployment_pane=html.Div(
 title_row = html.Div(
     children=[
         html.Div([html.H1("Crome's COVID-19 plotter"), 'Get the source code at ', html.A("GitHub", href="https://github.com/ccrome/covid-19", target="_blank")], className="col-md-9"),
-        html.Div(dcc.Checklist(id='pct-checkbox', options=[{'label' : "Plots as Percent", 'value' : 'PCT'}], value=[]), className="col-md-3"),
+        html.Div(
+            [
+                dcc.Checklist(id='pct-checkbox', options=[{'label' : "Plots as Percent", 'value' : 'PCT'}], value=[]),
+                html.Div([
+                    html.Label("Days to average: "),
+                    dcc.Slider(
+                        id="days-slider",
+                        min=1,
+                        max=10,
+                        step=1,
+                        value=5,
+                        marks={x: str(x) for x in range(11)},
+                    ),
+                ]
+                )
+            ],
+            className="col-md-3"),
     ],
     className="row"
 )
@@ -253,6 +271,11 @@ def update_data():
 def serve_layout():
     return main_area
 
+def clear_cache():
+    import subprocess
+    subprocess.run(["rm", "-rf", "cache"])
+
+clear_cache()
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 app.title="COVID-19 Dashboard"
 app.layout = serve_layout
@@ -304,10 +327,12 @@ def get_unemployment_plots():
         Output('unemployment', 'figure'),
         Output('new-unemployment-pct', 'figure'),
     ],
-    [Input('pct-checkbox', 'value')]
-    )
+    [
+        Input('pct-checkbox', 'value'),
+        Input('days-slider', 'value'),
+    ])
 @cache.memoize(timeout=100)
-def update_plots(percent):
+def update_plots(percent, days):
     global cases_by_county, cases_by_state
     if cases_by_county is None or cases_by_state is None:
         print("Couldn't get the data.  why is that.  Let's update the data...")
@@ -315,8 +340,8 @@ def update_plots(percent):
         if cases_by_county is None or cases_by_state is None:
             print("Updated and still can't get the data... drats.")
             return
-    county_plot = update_county_plot(percent, cases_by_county)
-    state_plot = update_state_plot(percent, cases_by_state)
+    county_plot = update_county_plot(percent, cases_by_county, days)
+    state_plot = update_state_plot(percent, cases_by_state, days)
     fred_plots = get_unemployment_plots()
 
     new_unemployment_df = unemployment.get_df('ICSA')

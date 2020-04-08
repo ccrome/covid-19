@@ -57,11 +57,13 @@ def compute_new_cases(cases, dates, num_days):
     new_cases = moving_average(new_cases, num_days)
 
     mask = new_cases != 0
-    if len(mask) != len(cases):
+    if len(mask) != len(cases) or len(cases) <= 1:
         raise NotEnoughCases()
     cases = cases[mask]
     new_cases = new_cases[mask]
     dates = dates[mask]
+    if len(cases) <= 1:
+        raise NotEnoughCases()
     return cases, new_cases, dates
 
 def plot_state(states, state, axis, num_days, min_cases=10, lineweight=1, offset=1.0, style="-", percent=False):
