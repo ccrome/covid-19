@@ -148,25 +148,6 @@ external_stylesheets = [
 ]
 
 
-layout = dict(
-    autosize=True,
-    height=500,
-    font=dict(color="#191A1A"),
-    titlefont=dict(color="#191A1A", size='14'),
-    margin=dict(
-        l=35,
-        r=35,
-        b=35,
-        t=45
-    ),
-    hovermode="closest",
-    plot_bgcolor='#fffcfc',
-    paper_bgcolor='#fffcfc',
-    legend=dict(font=dict(size=10), orientation='h'),
-    title='Each dot is an NYC Middle School eligible for SONYC funding',
-)
-
-
 county_plot = dcc.Graph(
     id='county-plot',
 )
