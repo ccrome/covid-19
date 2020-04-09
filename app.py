@@ -208,6 +208,11 @@ unemployment_pane=html.Div(
 
 title_row = html.Div(
     children=[
+        dcc.Interval(
+            id='page-load-interval',
+            interval=1,
+            n_intervals=0,
+        ),
         html.Div([html.H1("Crome's COVID-19 plotter"), 'Get the source code at ', html.A("GitHub", href="https://github.com/ccrome/covid-19", target="_blank")], className="col-md-9"),
         html.Div(
             [
@@ -318,7 +323,9 @@ def get_unemployment_plots():
         Output('excess-covid-unemployment', 'figure'),
         Output('excess-covid-unemployment-pct', 'figure'),
     ],
-    [Input('pct-checkbox', 'value')],
+    [
+        Input('page-load-interval', 'value'),
+    ],
 )
 def update_excess_unemployment(pct):
     dates, excess_unemployment, excess_as_pct = unemployment.get_excess_covid_claims()
@@ -344,7 +351,7 @@ def update_excess_unemployment(pct):
         Output('new-unemployment-pct', 'figure'),
     ],
     [
-        Input('pct-checkbox', 'value'),
+        Input('page-load-interval', 'value'),
     ])
 def update_employment_plots(pct_checkbox):
     fred_plots = get_unemployment_plots()
