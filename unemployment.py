@@ -85,7 +85,7 @@ def get_excess_covid_claims():
     icsa_dates = np.array(icsa_df['DATE'].values, dtype=np.datetime64)
     starting_idx = np.argmin(np.abs(icsa_dates-np.datetime64('2020-03-07')))
     base_value = icsa_values[starting_idx]
-    x = icsa_dates[starting_idx+1:]
-    y = np.cumsum(icsa_values[starting_idx+1:])
+    x = icsa_dates[starting_idx:]
+    y = np.cumsum(icsa_values[starting_idx:])
     assert(x.shape == y.shape)
     return x, y-base_value, (y-base_value)/158000000
