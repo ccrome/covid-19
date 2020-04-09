@@ -166,39 +166,44 @@ excess_covid_pct_plot = dcc.Graph(id='excess-covid-unemployment-pct')
 
 
 covid_pane=html.Div(
-    children=[
-        html.Div(html.Div(county_plot, className="col-md-12"), className="col-md-12"),
-        html.Div(html.Div(state_plot, className="col-md-12"), className="col-md-12"),
-    ],
-    className="row",
-)
+    dcc.Loading(
+        id='covid-loading', type='default', children=[
+            html.Div(html.Div(county_plot, className="col-md-12"), className="col-md-12"),
+            html.Div(html.Div(state_plot, className="col-md-12"), className="col-md-12"),
+        ],
+        className="row"))
+
 unemployment_pane=html.Div(
-    [
-        html.Div(
-            [
-                html.Div(new_unemployment_plot, className="col-md-6"),
-                html.Div(continuing_unemployment_plot, className="col-md-6"),
-            ],
-            className="row"),
-        html.Div(
-            [
-                html.Div(employment_plot, className="col-md-6"),
-                html.Div(unemployment_plot, className="col-md-6"),
-            ],
-            className="row"),
-        html.Div(
-            [
-                html.Div(new_unemployment_pct_plot, className="col-md-12"),
-            ],
-            className="row"),
-        html.Div(
-            [
-                
-                html.Div([html.Label("Excess claims since March 7, 2020.  Basically, this is the integral of new claims-base_level since 3/14/2020.  base_level is the march 7 level, just before the effects of COVID-19 layoffs could be seen in the data"),excess_covid_plot], className="col-md-6"),
-                html.Div([html.Label("Same as the preivous plot to the left, but expressed as a percentage of the total work force"),excess_covid_pct_plot], className="col-md-6"),
-            ],
-            className="row"),
-    ]
+    dcc.Loading(
+        id='unemployment-loading',
+        type='default',
+        children=[
+            html.Div(
+                [
+                    html.Div(new_unemployment_plot, className="col-md-6"),
+                    html.Div(continuing_unemployment_plot, className="col-md-6"),
+                ],
+                className="row"),
+            html.Div(
+                [
+                    html.Div(employment_plot, className="col-md-6"),
+                    html.Div(unemployment_plot, className="col-md-6"),
+                ],
+                className="row"),
+            html.Div(
+                [
+                    html.Div(new_unemployment_pct_plot, className="col-md-12"),
+                ],
+                className="row"),
+            html.Div(
+                [
+                    
+                    html.Div([html.Label("Excess claims since March 7, 2020.  Basically, this is the integral of new claims-base_level since 3/14/2020.  base_level is the march 7 level, just before the effects of COVID-19 layoffs could be seen in the data"),excess_covid_plot], className="col-md-6"),
+                    html.Div([html.Label("Same as the preivous plot to the left, but expressed as a percentage of the total work force"),excess_covid_pct_plot], className="col-md-6"),
+                ],
+                className="row"),
+        ]
+        )
 )
 
 title_row = html.Div(
