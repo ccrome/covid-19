@@ -180,6 +180,9 @@ continuing_unemployment_plot = dcc.Graph(id='continuing-unemployment')
 new_unemployment_pct_plot = dcc.Graph(id='new-unemployment-pct')
 employment_plot = dcc.Graph(id='employment')
 unemployment_plot = dcc.Graph(id='unemployment')
+excess_covid_plot = dcc.Graph(id='excess-covid-unemployment')
+excess_covid_pct_plot = dcc.Graph(id='excess-covid-unemployment-pct')
+
 
 covid_pane=html.Div(
     children=[
@@ -205,6 +208,13 @@ unemployment_pane=html.Div(
         html.Div(
             [
                 html.Div(new_unemployment_pct_plot, className="col-md-12"),
+            ],
+            className="row"),
+        html.Div(
+            [
+                
+                html.Div([html.Label("Excess claims since March 7, 2020.  Basically, this is the integral of new claims-base_level since 3/14/2020.  base_level is the march 7 level, just before the effects of COVID-19 layoffs could be seen in the data"),excess_covid_plot], className="col-md-6"),
+                html.Div([html.Label("Same as the preivous plot to the left, but expressed as a percentage of the total work force"),excess_covid_pct_plot], className="col-md-6"),
             ],
             className="row"),
     ]
@@ -317,6 +327,27 @@ def get_unemployment_plots():
         plots[k] = make_plot(df, config['xaxis'], config['yaxis'], config['title'], config['xlabel'], config['ylabel'])
     return plots
 
+@app.callback(
+    [
+        Output('excess-covid-unemployment', 'figure'),
+        Output('excess-covid-unemployment-pct', 'figure'),
+    ],
+    [Input('pct-checkbox', 'value')],
+)
+def update_excess_unemployment(pct):
+    dates, excess_unemployment, excess_as_pct = unemployment.get_excess_covid_claims()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=dates, y=excess_unemployment, mode='lines+markers'))
+    fig.update_layout(
+        title="Excess Claims",
+        xaxis_title="Date",
+        yaxis_title="Excess claims")
+    excess_fig = go.Figure()
+    excess_fig.add_trace(go.Scatter(x=dates, y = excess_as_pct*100, mode="lines+markers"))
+    excess_fig.update_layout(title="Excess claims as percent of workforce",
+                      xaxis_title="Date",
+                      yaxis_title="Excess claims (%)")
+    return [fig, excess_fig]
 
 @app.callback(
     [
@@ -329,7 +360,6 @@ def get_unemployment_plots():
     [
         Input('pct-checkbox', 'value'),
     ])
-@cache.memoize(timeout=3600*4)
 def update_employment_plots(pct_checkbox):
     fred_plots = get_unemployment_plots()
 
@@ -368,3 +398,5 @@ def update_plots(percent, days):
 
 if __name__ == '__main__':
     app.run_server(debug=True, host="0.0.0.0")
+
+

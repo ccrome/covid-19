@@ -72,3 +72,20 @@ def get_as_part_of_employment(key):
     b = x1.astype(int, casting='unsafe')
     interp_employ = np.interp(a, b, y1)
     return x0, y0/interp_employ
+
+def get_excess_covid_claims():
+    """Look at the excess COVID-19 unemployment claims
+    
+    The first set of excess covid claims started on March 14, 2020
+    The level before that was 211k claims, then 282k, then 3,030k and up
+    This function returns the integral of (claims-211k) starting on 3/14
+    """
+    icsa_df = get_df('ICSA')
+    icsa_values = icsa_df['ICSA']
+    icsa_dates = np.array(icsa_df['DATE'].values, dtype=np.datetime64)
+    starting_idx = np.argmin(np.abs(icsa_dates-np.datetime64('2020-03-07')))
+    base_value = icsa_values[starting_idx]
+    x = icsa_dates[starting_idx+1:]
+    y = np.cumsum(icsa_values[starting_idx+1:])
+    assert(x.shape == y.shape)
+    return x, y-base_value, (y-base_value)/158000000
