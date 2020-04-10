@@ -165,15 +165,68 @@ excess_covid_plot = dcc.Graph(id='excess-covid-unemployment')
 excess_covid_pct_plot = dcc.Graph(id='excess-covid-unemployment-pct')
 
 
-covid_pane=html.Div(
+covid_pane_controls = html.Div(
+    [
+        dcc.Checklist(id='pct-checkbox', options=[{'label' : "Plots as Percent", 'value' : 'PCT'}], value=[]),
+        html.Div([
+            html.Label("Days to average: "),
+            dcc.Slider(
+                id="days-slider",
+                min=1,
+                max=10,
+                step=1,
+                value=5,
+                marks={x: str(x) for x in range(11)},
+            ),
+        ]
+        )
+    ],
+    className="col-md-3")
+
+covid_pane=html.Div([
+    html.Div(
+        [
+            dcc.Markdown('''
+# Covid-19 plots
+These plots were inspired by this [MinutePhysics](https://www.youtube.com/watch?v=54XLXg4fYsc) video, 
+and the [assosciated web site](https://aatishb.com/covidtrends/).  I wanted those same plots, but
+for the US states and counties.
+
+## The dataset
+The source data is regularly updated from the [New York Times dataset](https://github.com/nytimes/covid-19-data).
+            ''', className="col-md-9"),
+            covid_pane_controls,
+        ], className="row"),
     dcc.Loading(
         id='covid-loading', type='default', children=[
             html.Div(html.Div(county_plot, className="col-md-12"), className="col-md-12"),
             html.Div(html.Div(state_plot, className="col-md-12"), className="col-md-12"),
         ],
-        className="row"))
+        className="row")
+])
 
-unemployment_pane=html.Div(
+unemployment_pane=html.Div([
+    dcc.Markdown('''
+# Unemployment Data
+It was hard to find a good machine readable data source for
+unemployment data.  It appears that the US government releases
+official unemployment data as... get this... a PDF file.  Rally?
+   
+But I finally found the FRED database.  has a zillion data
+sources, all in nicely accessible CSV format.  For example, here's
+the [unemployment data source](https://fred.stlouisfed.org/series/UNRATE)
+
+Each of their data sources has an ID that you can access it by. 
+These are the ones I use for these plots
+
+| ID | Info |
+| --- |:---:|
+| *UNRATE* | Unemployment Rate |
+| *ICSA* | New unemployment claims this week |
+| *CCSA* | Continuing unemployment claims this week |
+| *LNU02000000* | The number of employed people in the US |
+
+    ''', className="col-sm-9"),
     dcc.Loading(
         id='unemployment-loading',
         type='default',
@@ -203,8 +256,8 @@ unemployment_pane=html.Div(
                 ],
                 className="row"),
         ]
-        )
-)
+    )
+])
 
 title_row = html.Div(
     children=[
@@ -214,28 +267,17 @@ title_row = html.Div(
             n_intervals=0,
         ),
         html.Div([html.H1("Crome's COVID-19 plotter"), 'Get the source code at ', html.A("GitHub", href="https://github.com/ccrome/covid-19", target="_blank")], className="col-md-9"),
-        html.Div(
-            [
-                dcc.Checklist(id='pct-checkbox', options=[{'label' : "Plots as Percent", 'value' : 'PCT'}], value=[]),
-                html.Div([
-                    html.Label("Days to average: "),
-                    dcc.Slider(
-                        id="days-slider",
-                        min=1,
-                        max=10,
-                        step=1,
-                        value=5,
-                        marks={x: str(x) for x in range(11)},
-                    ),
-                ]
-                )
-            ],
-            className="col-md-3"),
     ],
     className="row"
 )
 
-main_area = html.Div([title_row, covid_pane, unemployment_pane], className="container")
+tabs = dcc.Tabs(
+    [
+        dcc.Tab(covid_pane, label="COVID"),
+        dcc.Tab(unemployment_pane, label="Unemployment"),
+    ]
+)
+main_area = html.Div([title_row, tabs], className="container")
 
 cases_by_county = None
 cases_by_state = None
