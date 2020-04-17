@@ -21,5 +21,3 @@ def s(x):
 
 def get_causes():
     return [(x, causes_of_death[x]) for x in sorted(causes_of_death, key=s)[::-1]]
-
-print(get_causes())

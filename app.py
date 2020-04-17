@@ -14,10 +14,9 @@ import threading
 import unemployment
 import json
 import numpy as np
+import death
 
 from flask_caching import Cache
-
-
 
 def state_to_abbr(state):
     state_map = json.loads(open("name-abbr.json").read())
@@ -286,6 +285,11 @@ tabs = dcc.Tabs(
     [
         dcc.Tab(covid_pane, label="COVID"),
         dcc.Tab(unemployment_pane, label="Unemployment"),
+        dcc.Tab(
+            html.Div([
+                dcc.Graph(id='causes-graph'),
+                dcc.Graph(id='flu-graph'),
+            ]), label="Causes of Death"),
     ]
 )
 main_area = html.Div([title_row, tabs], className="container")
@@ -371,6 +375,15 @@ def get_unemployment_plots():
         plots[k] = make_plot(df, config['xaxis'], config['yaxis'], config['title'], config['xlabel'], config['ylabel'])
     return plots
 
+def update_cases():
+    global cases_by_county, cases_by_state
+    if cases_by_county is None or cases_by_state is None:
+        print("Couldn't get the data.  why is that.  Let's update the data...")
+        update_data()
+        if cases_by_county is None or cases_by_state is None:
+            print("Updated and still can't get the data... drats.")
+            return
+
 @app.callback(
     [
         Output('excess-covid-unemployment', 'figure'),
@@ -435,6 +448,45 @@ def update_employment_plots(pct_checkbox, scale_days):
     return fred_plots['new_claims'], fred_plots['cont_claims'], fred_plots['employment'], fred_plots['unemployment'], icsa_pct_fig    
 
 @app.callback(
+    [Output('causes-graph', 'figure'),
+     Output('flu-graph', 'figure'),
+    ],
+    [Input('page-load-interval', 'value')],
+)
+def causes_plot(loader):
+    global cases_by_state
+    if cases_by_state is None:
+        update_cases()
+    total_deaths = 0
+    for state in cases_by_state:
+        deaths = cases_by_state[state]["deaths"]
+        if len(deaths) >= 2:
+            total_deaths += deaths[-1] - deaths[-2]
+        elif len(deaths) == 1:
+            total_deaths += deaths[-1]
+    all_fig = go.Figure()
+    causes = death.get_causes()
+    x = [c[0] for c in causes]
+    y = [int(c[1]/365+0.5) for c in causes]
+    for xi, yi in zip(x, y):
+        all_fig.add_trace(go.Bar(x=["Non-Covid",], y=[yi,], name=xi))
+    all_fig.add_trace(go.Bar(x=["Covid-19 Deaths Yesterday",], y=[total_deaths,], name="COVID-19"))
+    all_fig.update_layout(barmode='stack')
+
+    flu_fig = go.Figure()
+    flu_deaths_years = [f"{x}" for x in [1918, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019]]
+    flu_deaths_values = np.array([675, 37, 12, 43, 38, 51, 23, 38, 61, 34]) * 1000/365
+    flu_fig.add_trace(go.Bar(x=flu_deaths_years, y = flu_deaths_values, name="Average Flu Deaths per day"))
+    flu_fig.add_trace(go.Bar(x=["2019",], y=[total_deaths,], name="COVID-19 deaths yesterday"))
+    flu_fig.update_layout(
+        title="Average Influenza Deaths per day vs COVID-19 deaths yesterday in the USA",
+        xaxis_title="Year",
+        yaxis_title="Deaths per day",
+        xaxis_type="category",
+    )
+    return all_fig, flu_fig
+
+@app.callback(
     [
         Output('county-plot', 'figure'),
         Output('state-plot', 'figure'),
@@ -446,18 +498,10 @@ def update_employment_plots(pct_checkbox, scale_days):
 @cache.memoize(timeout=3600*4)
 def update_plots(percent, days):
     global cases_by_county, cases_by_state
-    if cases_by_county is None or cases_by_state is None:
-        print("Couldn't get the data.  why is that.  Let's update the data...")
-        update_data()
-        if cases_by_county is None or cases_by_state is None:
-            print("Updated and still can't get the data... drats.")
-            return
+    update_cases()
     county_plot = update_county_plot(percent, cases_by_county, days)
     state_plot = update_state_plot(percent, cases_by_state, days)
     return county_plot, state_plot
 
-
 if __name__ == '__main__':
     app.run_server(debug=True, host="0.0.0.0")
-
-
