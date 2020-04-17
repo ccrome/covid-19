@@ -472,14 +472,14 @@ def causes_plot(loader):
         all_fig.add_trace(go.Bar(x=["Non-Covid",], y=[yi,], name=xi))
     all_fig.add_trace(go.Bar(x=["Covid-19 Deaths Yesterday",], y=[total_deaths,], name="COVID-19"))
     all_fig.update_layout(barmode='stack')
-
+    date = cases_by_state["California"]["date"][-1]
     flu_fig = go.Figure()
     flu_deaths_years = [f"{x}" for x in [1918, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019]]
     flu_deaths_values = np.array([675, 37, 12, 43, 38, 51, 23, 38, 61, 34]) * 1000/365
     flu_fig.add_trace(go.Bar(x=flu_deaths_years, y = flu_deaths_values, name="Average Flu Deaths per day"))
-    flu_fig.add_trace(go.Bar(x=["2019",], y=[total_deaths,], name="COVID-19 deaths yesterday"))
+    flu_fig.add_trace(go.Bar(x=["2019",], y=[total_deaths,], name=f"COVID-19 deaths {date}"))
     flu_fig.update_layout(
-        title="Average Influenza Deaths per day vs COVID-19 deaths yesterday in the USA",
+        title=f"Average Influenza Deaths per day vs COVID-19 deaths {date} in the USA",
         xaxis_title="Year",
         yaxis_title="Deaths per day",
         xaxis_type="category",
