@@ -1,7 +1,7 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Output, Input
+from dash.dependencies import Output, Input, State
 import covid_19
 import pandas as pd
 import plotly.graph_objects as go
@@ -13,6 +13,7 @@ import time
 import threading
 import unemployment
 import json
+import numpy as np
 
 from flask_caching import Cache
 
@@ -206,6 +207,7 @@ The source data is regularly updated from the [New York Times dataset](https://g
 ])
 
 unemployment_pane=html.Div([
+    html.Div(className="row",children=[
     dcc.Markdown('''
 # Unemployment Data
 It was hard to find a good machine readable data source for
@@ -227,6 +229,15 @@ These are the ones I use for these plots
 | *LNU02000000* | The number of employed people in the US |
 
     ''', className="col-sm-9"),
+    dcc.RadioItems(
+        options=[
+            {"label": "1 Year", "value": 365},
+            {"label": "5 Years", "value": 365*5},
+            {"label": "All", "value": ""},
+        ],
+        id='scale-selector',
+        value=365,
+        className="col-sm-3"),
     dcc.Loading(
         id='unemployment-loading',
         type='default',
@@ -257,7 +268,7 @@ These are the ones I use for these plots
                 className="row"),
         ]
     )
-])
+    ])])
 
 title_row = html.Div(
     children=[
@@ -369,6 +380,7 @@ def get_unemployment_plots():
         Input('page-load-interval', 'value'),
     ],
 )
+@cache.memoize(timeout=3600*4)
 def update_excess_unemployment(pct):
     dates, excess_unemployment, excess_as_pct = unemployment.get_excess_covid_claims()
     fig = go.Figure()
@@ -394,8 +406,10 @@ def update_excess_unemployment(pct):
     ],
     [
         Input('page-load-interval', 'value'),
+        Input('scale-selector', 'value'),
     ])
-def update_employment_plots(pct_checkbox):
+@cache.memoize(timeout=3600*4)
+def update_employment_plots(pct_checkbox, scale_days):
     fred_plots = get_unemployment_plots()
 
     icsa_dates, icsa_pct = unemployment.get_as_part_of_employment('ICSA')
@@ -405,7 +419,19 @@ def update_employment_plots(pct_checkbox):
     icsa_pct_fig.add_trace(go.Scatter(x=ccsa_dates, y=ccsa_pct*100, mode='lines+markers', name="Cont. Claims"))
     icsa_pct_fig.update_layout(title="Unemployment Claims as percent of total workforce",
                                xaxis_title="Date",
-                               yaxis_title="Percent (%)")
+                               yaxis_title="Percent (%)",
+    )
+    end=np.datetime64('today')
+    if scale_days is "":
+        start = icsa_dates[0]
+    else:
+        start=end-np.timedelta64(scale_days, 'D')
+    
+    icsa_pct_fig.update_xaxes(range=[start, end])
+    fred_plots['new_claims'].update_xaxes(range=[start, end])
+    fred_plots['cont_claims'].update_xaxes(range=[start, end])
+    fred_plots['employment'].update_xaxes(range=[start, end])
+    fred_plots['unemployment'].update_xaxes(range=[start, end])
     return fred_plots['new_claims'], fred_plots['cont_claims'], fred_plots['employment'], fred_plots['unemployment'], icsa_pct_fig    
 
 @app.callback(
