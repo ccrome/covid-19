@@ -283,13 +283,13 @@ title_row = html.Div(
 
 tabs = dcc.Tabs(
     [
-        dcc.Tab(covid_pane, label="COVID"),
-        dcc.Tab(unemployment_pane, label="Unemployment"),
         dcc.Tab(
             html.Div([
                 dcc.Graph(id='causes-graph'),
                 dcc.Graph(id='flu-graph'),
             ]), label="Causes of Death"),
+        dcc.Tab(covid_pane, label="COVID"),
+        dcc.Tab(unemployment_pane, label="Unemployment"),
     ]
 )
 main_area = html.Div([title_row, tabs], className="container")
