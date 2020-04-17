@@ -285,6 +285,13 @@ tabs = dcc.Tabs(
     [
         dcc.Tab(
             html.Div([
+                dcc.Markdown('''
+# Average causes of death vs COVID-19
+The average causes of death in the plots below are from the latest
+[2017 National Vital Statistics Report](https://www.cdc.gov/nchs/data/nvsr/nvsr68/nvsr68_06-508.pdf).
+The 2018 and 2019 data isn't available yet.
+'''
+                ),
                 dcc.Graph(id='causes-graph'),
                 dcc.Graph(id='flu-graph'),
             ]), label="Causes of Death"),
