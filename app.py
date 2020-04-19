@@ -228,19 +228,22 @@ These are the ones I use for these plots
 | *LNU02000000* | The number of employed people in the US |
 
     ''', className="col-sm-9"),
-    dcc.RadioItems(
-        options=[
-            {"label": "1 Year", "value": 365},
-            {"label": "5 Years", "value": 365*5},
-            {"label": "All", "value": ""},
-        ],
-        id='scale-selector',
-        value=365,
-        className="col-sm-3"),
     dcc.Loading(
         id='unemployment-loading',
         type='default',
         children=[
+            html.Div(
+                [html.Label("Time Scale to Display: "),
+                 dcc.RadioItems(
+                    options=[
+                        {"label": "1 Year", "value": 365},
+                        {"label": "5 Years", "value": 365*5},
+                        {"label": "All", "value": ""},
+                    ],
+                    id='scale-selector',
+                    value=365*5,
+                 )],
+                className="row"),
             html.Div(
                 [
                     html.Div(new_unemployment_plot, className="col-md-6"),
