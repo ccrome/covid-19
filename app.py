@@ -303,6 +303,7 @@ main_area = html.Div([title_row, tabs], className="container")
 
 cases_by_county = None
 cases_by_state = None
+country_summary = None
 
 def del_and_clone():
     print("del and clone")
@@ -310,13 +311,15 @@ def del_and_clone():
     subprocess.call(["git", "clone", "https://github.com/nytimes/covid-19-data.git"])
 
 def pull():
-    global cases_by_state, cases_by_county
+    global cases_by_state, cases_by_county, country_summary
     subprocess.call(["git", "pull"], cwd="covid-19-data")
     df_county = pd.read_csv("covid-19-data/us-counties.csv")
     df_state = pd.read_csv("covid-19-data/us-states.csv")
     cases_by_state = covid_19.df_to_dict_state(df_state)
     cases_by_county = covid_19.df_to_dict_county(df_county)
+    country_summary = covid_19.summarize_state_data(cases_by_state)
     
+
 update_lock = threading.Lock()
 def update_data():
     global update_lock
@@ -460,24 +463,21 @@ def update_employment_plots(pct_checkbox, scale_days):
     ],
     [Input('page-load-interval', 'value')],
 )
+
 def causes_plot(loader):
-    global cases_by_state
+    global cases_by_state, country_summary
     if cases_by_state is None:
         update_cases()
-    total_deaths = 0
-    for state in cases_by_state:
-        deaths = cases_by_state[state]["deaths"]
-        if len(deaths) >= 2:
-            total_deaths += deaths[-1] - deaths[-2]
-        elif len(deaths) == 1:
-            total_deaths += deaths[-1]
+    total_deaths = country_summary['deaths'][-1]
     all_fig = go.Figure()
     causes = death.get_causes()
     x = [c[0] for c in causes]
     y = [int(c[1]/365+0.5) for c in causes]
     for xi, yi in zip(x, y):
         all_fig.add_trace(go.Bar(x=["Non-Covid",], y=[yi,], name=xi))
-    all_fig.add_trace(go.Bar(x=["Covid-19 Deaths Yesterday",], y=[total_deaths,], name="COVID-19"))
+    weekdates = country_summary['date'][-14:]
+    weekdeaths = country_summary['deaths'][-14:]
+    all_fig.add_trace(go.Bar(x=weekdates, y=weekdeaths, name="COVID-19"))
     all_fig.update_layout(barmode='stack')
     date = cases_by_state["California"]["date"][-1]
     flu_fig = go.Figure()

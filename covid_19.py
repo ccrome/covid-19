@@ -12,6 +12,8 @@ import numpy as np
 import argparse
 import subprocess
 from datetime import datetime
+from collections import defaultdict
+import pprint
 
 class NotEnoughCases(Exception):
     pass
@@ -86,9 +88,8 @@ def plot_county(cases_by_county, county_state, axis, num_days, min_cases=10, lin
         axis.loglog(cases, new_cases, style, label=f"{county}, {state}", linewidth=lineweight)
 
 def df_to_dict_county(df):
-    from collections import defaultdict
     county_state_cases = np.array(df[["county", "state", "cases", "deaths", "date"]].values, dtype=str)
-    cases_by_county = defaultdict(lambda: {"cases" : [], "deaths" : [], "date" : []})
+    cases_by_county = defaultdict(lambda: {"cases": [], "deaths": [], "date": []})
     [cases_by_county[county, state]["cases"].append(cases)   for county, state, cases, deaths, date in county_state_cases]
     [cases_by_county[county, state]["deaths"].append(deaths) for county, state, cases, deaths, date in county_state_cases]
     [cases_by_county[county, state]["date"].append(date)     for county, state, cases, deaths, date in county_state_cases]
@@ -97,6 +98,24 @@ def df_to_dict_county(df):
         cases_by_county[k]["deaths"] = np.array(cases_by_county[k]["deaths"], dtype=float)
         cases_by_county[k]["date"] = np.array(cases_by_county[k]["date"])
     return cases_by_county
+
+def summarize_state_data(cases_by_state):
+    by_date = defaultdict(lambda: {'deaths': 0, 'cases': 0})
+    for k in cases_by_state:
+        dates = cases_by_state[k]['date']
+        cases = cases_by_state[k]['new-cases']
+        deaths = cases_by_state[k]['new-deaths']
+        for date, c, d in zip(dates, cases, deaths):
+            by_date[date]['deaths'] += d
+            by_date[date]['cases'] += c
+    deaths = []
+    cases = []
+    dates = []
+    for date in sorted(by_date):
+        deaths.append(by_date[date]['deaths'])
+        cases.append(by_date[date]['cases'])
+        dates.append(date)
+    return {'date': dates, 'cases': cases, 'deaths': deaths}
 
 def df_to_dict_state(df):
     from collections import defaultdict
@@ -109,8 +128,11 @@ def df_to_dict_state(df):
         cases_by_state[k]["cases"]  = np.array(cases_by_state[k]["cases"], dtype=float)
         cases_by_state[k]["deaths"] = np.array(cases_by_state[k]["deaths"], dtype=float)
         cases_by_state[k]["date"]   = np.array(cases_by_state[k]["date"])
+        cases_by_state[k]['new-deaths'] = np.insert(np.diff(cases_by_state[k]["deaths"]), 0, 0)
+        cases_by_state[k]['new-cases'] = np.insert(np.diff(cases_by_state[k]["deaths"]), 0, 0)
     return cases_by_state
 
+        
 def counties_by_num_cases(cases_by_county):
     counties = []
     for k in cases_by_county:
